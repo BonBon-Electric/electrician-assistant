@@ -65,45 +65,72 @@ def update_chat_history(role: str, content: str):
 
 def get_nec_assistant_prompt(query: str) -> str:
     """Generate the prompt for the NEC Electrical Assistant"""
-    return f"""You are an expert electrical contractor and NEC code specialist. Answer the following question about electrical work:
+    return f"""You are an expert electrical contractor and NEC code specialist based in Los Angeles County. Answer the following question about electrical work:
 
 {query}
 
-Structure your response in this format:
+Provide your response in this format:
 
-SUMMARY:
-Provide a brief, practical explanation of how to accomplish the task. Focus on the key steps and important safety considerations. This should be 2-3 sentences that give a high-level overview of the process.
+[No title - start with the practical explanation]
+Give a brief, practical explanation of how to accomplish the task. Focus on the key steps and important safety considerations. This should be 2-3 sentences that give a high-level overview of the process.
 
 RELEVANT NEC CODES:
-List and explain the relevant NEC codes that apply to this work. Format each code reference as a clickable link using this format:
-NEC XXX.YY 📖 (section title): Brief explanation of the requirement.
+List and explain the relevant NEC codes that apply to this work. For each code, include:
+- Code number and title
+- Brief explanation of the requirement
+- Any specific compliance details
 
-DETAILED RESPONSE:
-Provide a detailed, step-by-step explanation of how to properly complete the work, including:
-1. Required permits and inspections
-2. Safety precautions and PPE requirements
-3. Tools and materials needed
-4. Step-by-step installation/repair process
-5. Testing and verification procedures
-6. Common mistakes to avoid
+PERMITS AND INSPECTIONS (Los Angeles County):
+1. List all required permits from LA County Building & Safety
+2. Specific forms or documentation needed
+3. Inspection requirements and process
+4. Typical timeline and costs
+5. Any special LA County requirements or restrictions
+
+TECHNICAL DETAILS:
+1. Safety Requirements:
+   - Required PPE
+   - Safety procedures
+   - Lock-out/tag-out requirements
+
+2. Tools and Materials:
+   - List of required tools
+   - Required materials and specifications
+   - Recommended brands or types
+
+3. Step-by-Step Process:
+   - Detailed installation/repair steps
+   - Critical measurements and specifications
+   - Testing procedures
+   - Quality control checks
+
+4. Best Practices:
+   - Industry-standard techniques
+   - Common mistakes to avoid
+   - Tips from experienced professionals
+   - Future maintenance considerations
 
 Ensure all technical information is accurate and code-compliant."""
 
 def format_nec_response(response: str) -> str:
     """Format the NEC assistant response with proper styling and links"""
     
-    # Add NFPA link formatting
+    # Remove section titles while keeping the content
+    response = re.sub(r'^SUMMARY:\s*', '', response, flags=re.MULTILINE)
+    response = re.sub(r'^DETAILED RESPONSE:\s*', '', response, flags=re.MULTILINE)
+    
+    # Format NEC code references as links with proper styling
     def replace_nec_reference(match):
         code = match.group(1)
-        return f'<a href="https://www.nfpa.org/codes-and-standards/all-codes-and-standards/list-of-codes-and-standards/detail?code=70&section={code}" target="_blank">NEC {code}</a>'
+        return f'<a href="https://www.nfpa.org/codes-and-standards/all-codes-and-standards/list-of-codes-and-standards/detail?code=70&section={code}" target="_blank" style="text-decoration: none; color: #0366d6;">NEC {code} 📖</a>'
     
-    # Format NEC code references as links
-    response = re.sub(r'NEC (\d+\.\d+)', replace_nec_reference, response)
+    # Update the pattern to match various NEC reference formats
+    response = re.sub(r'NEC (\d+\.\d+(?:\([a-z]\))?(?:\(\d+\))?)', replace_nec_reference, response)
     
-    # Add emoji to section headers
-    response = re.sub(r'^SUMMARY:', '📋 SUMMARY:', response, flags=re.MULTILINE)
-    response = re.sub(r'^RELEVANT NEC CODES:', '📚 RELEVANT NEC CODES:', response, flags=re.MULTILINE)
-    response = re.sub(r'^DETAILED RESPONSE:', '🔍 DETAILED RESPONSE:', response, flags=re.MULTILINE)
+    # Add subtle separator before each main section
+    response = re.sub(r'^RELEVANT NEC CODES:', '\n---\n\n📚 RELEVANT NEC CODES:', response, flags=re.MULTILINE)
+    response = re.sub(r'^PERMITS AND INSPECTIONS', '\n---\n\n📋 PERMITS AND INSPECTIONS', response, flags=re.MULTILINE)
+    response = re.sub(r'^TECHNICAL DETAILS:', '\n---\n\n🔧 TECHNICAL DETAILS:', response, flags=re.MULTILINE)
     
     return response
 
