@@ -218,10 +218,9 @@ def create_cost_estimate(description: str, additional_info: dict = None):
     1. Labor costs (breakdown of hours and rates)
     2. Material costs (itemized list with prices)
     3. Permit fees and inspections
-    4. Overhead and profit
-    5. Timeline for completion
-    6. Any potential additional costs or variables
-    7. Confidence level of the estimate based on information provided
+    4. Timeline for completion
+    5. Any potential additional costs or variables
+    6. Confidence level of the estimate based on information provided
     
     Format the response in this exact JSON structure:
     {{
@@ -253,21 +252,33 @@ def create_cost_estimate(description: str, additional_info: dict = None):
         "confidence_level": "string",
         "total_estimate": number,
         "additional_notes": "string"
-    }}"""
+    }}
+    
+    IMPORTANT: Return ONLY the JSON object, no additional text or formatting."""
     
     try:
         response = model.generate_content(prompt)
         response_text = response.text.strip()
         
         # Clean up the response to ensure it's valid JSON
-        # Remove any markdown code block markers
+        # Remove any markdown code block markers and extra whitespace
         response_text = re.sub(r'```json\s*|\s*```', '', response_text)
+        response_text = re.sub(r'^\s+|\s+$', '', response_text)
+        
+        # Try to find the JSON object if there's extra text
+        json_start = response_text.find('{')
+        json_end = response_text.rfind('}')
+        if json_start >= 0 and json_end >= 0:
+            response_text = response_text[json_start:json_end + 1]
         
         # Parse the response into a dictionary
-        estimate_data = json.loads(response_text)
-        return {"status": "complete", "data": estimate_data}
-    except json.JSONDecodeError as e:
-        return {"status": "error", "message": f"Invalid JSON format: {str(e)}"}
+        try:
+            estimate_data = json.loads(response_text)
+            return {"status": "complete", "data": estimate_data}
+        except json.JSONDecodeError as je:
+            st.error(f"Failed to parse response: {str(je)}\nResponse text: {response_text}")
+            return {"status": "error", "message": "Invalid response format from AI model"}
+            
     except Exception as e:
         return {"status": "error", "message": f"Error generating estimate: {str(e)}"}
 
