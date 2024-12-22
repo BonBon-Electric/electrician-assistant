@@ -340,117 +340,141 @@ def create_cost_estimate(description: str, additional_info: dict = None):
 
 def display_cost_estimate(estimate_data):
     """Display the cost estimate in a formatted way"""
-    if not estimate_data:
+    if estimate_data["status"] == "error":
+        st.error(estimate_data["message"])
         return
-
-    st.write("# Cost Estimate")
+        
+    data = estimate_data["data"]
     
     # Initialize session state for editable fields if not exists
     if 'materials' not in st.session_state:
-        st.session_state.materials = estimate_data.get('materials', [])
+        st.session_state.materials = []
+        if "material_costs" in data and "items" in data["material_costs"]:
+            for item in data["material_costs"]["items"]:
+                st.session_state.materials.append({
+                    "name": item["item"],
+                    "quantity": item["quantity"],
+                    "price": item["price"],
+                    "total": item["total"]
+                })
+    
     if 'labor' not in st.session_state:
-        st.session_state.labor = estimate_data.get('labor', [])
+        st.session_state.labor = []
+        if "labor_costs" in data:
+            labor = data["labor_costs"]
+            st.session_state.labor.append({
+                "description": labor["description"],
+                "hours": labor["total_hours"],
+                "rate": labor["rate_per_hour"],
+                "total": labor["total"]
+            })
+    
     if 'permits' not in st.session_state:
-        st.session_state.permits = estimate_data.get('permits', [])
-    if 'overhead' not in st.session_state:
-        st.session_state.overhead = estimate_data.get('overhead', 0)
-
-    with st.expander("📋 Project Details", expanded=True):
-        st.write("### Project Scope")
-        st.write(estimate_data.get('description', ''))
-
-    # Materials Section
-    with st.expander("🛠️ Materials", expanded=True):
-        st.write("### Materials")
+        st.session_state.permits = []
+        if "permit_fees" in data:
+            permit = data["permit_fees"]
+            if "total" in permit:
+                st.session_state.permits.append({
+                    "name": "Permit and Inspection Fees",
+                    "cost": permit["total"]
+                })
+    
+    # Labor Costs
+    if "labor_costs" in data:
+        st.subheader("👷 Labor Costs")
         
-        # Create a copy of materials list for editing
+        # Make labor editable
+        labor_item = st.session_state.labor[0] if st.session_state.labor else {"description": "", "hours": 0, "rate": 0}
+        
+        description = st.text_input("Description", labor_item["description"], key="labor_desc")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            hours = st.number_input("Hours", min_value=0.0, value=float(labor_item["hours"]), key="labor_hours")
+        with col2:
+            rate = st.number_input("Rate ($/hr)", min_value=0.0, value=float(labor_item["rate"]), key="labor_rate")
+        with col3:
+            labor_total = hours * rate
+            st.metric("Total Labor", f"${labor_total:,.2f}")
+        
+        # Update session state
+        st.session_state.labor = [{
+            "description": description,
+            "hours": hours,
+            "rate": rate,
+            "total": labor_total
+        }]
+    
+    # Materials
+    if "material_costs" in data:
+        st.subheader("🔧 Materials")
+        
+        # Make materials editable
         updated_materials = []
         for i, material in enumerate(st.session_state.materials):
-            st.write(f"#### Item {i+1}")
-            col1, col2, col3 = st.columns(3)
-            
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
-                name = st.text_input(f"Material {i+1}", material['name'], key=f"mat_name_{i}")
+                name = st.text_input(f"Item {i+1}", material["name"], key=f"mat_name_{i}")
             with col2:
-                qty = st.number_input(f"Quantity {i+1}", min_value=0, value=material['quantity'], key=f"mat_qty_{i}")
+                qty = st.number_input(f"Quantity {i+1}", min_value=0, value=material["quantity"], key=f"mat_qty_{i}")
             with col3:
-                price = st.number_input(f"Price ${i+1}", min_value=0.0, value=float(material['price']), key=f"mat_price_{i}")
+                price = st.number_input(f"Price/Unit ${i+1}", min_value=0.0, value=float(material["price"]), key=f"mat_price_{i}")
+            with col4:
+                total = qty * price
+                st.metric(f"Total ${i+1}", f"${total:,.2f}")
             
             updated_materials.append({
-                'name': name,
-                'quantity': qty,
-                'price': price,
-                'total': qty * price
+                "name": name,
+                "quantity": qty,
+                "price": price,
+                "total": total
             })
         
         st.session_state.materials = updated_materials
-        materials_total = sum(item['total'] for item in updated_materials)
-        st.write(f"**Materials Subtotal: ${materials_total:.2f}**")
-
-    # Labor Section
-    with st.expander("👷 Labor", expanded=True):
-        st.write("### Labor")
+        materials_total = sum(item["total"] for item in updated_materials)
+        st.metric("Total Materials", f"${materials_total:,.2f}")
+    
+    # Permit Fees
+    if "permit_fees" in data:
+        st.subheader("📋 Los Angeles County Permits & Inspections")
+        permit = data["permit_fees"]
+        if "permits_required" in permit:
+            st.write("**Required Permits:**")
+            for p in permit["permits_required"]:
+                st.write(f"- {p}")
+        if "inspections_required" in permit:
+            st.write("**Required Inspections:**")
+            for i in permit["inspections_required"]:
+                st.write(f"- {i}")
         
-        updated_labor = []
-        for i, labor_item in enumerate(st.session_state.labor):
-            st.write(f"#### Labor Item {i+1}")
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                description = st.text_input(f"Description {i+1}", labor_item['description'], key=f"labor_desc_{i}")
-            with col2:
-                hours = st.number_input(f"Hours {i+1}", min_value=0.0, value=float(labor_item['hours']), key=f"labor_hours_{i}")
-            with col3:
-                rate = st.number_input(f"Rate $/hr {i+1}", min_value=0.0, value=float(labor_item['rate']), key=f"labor_rate_{i}")
-            
-            updated_labor.append({
-                'description': description,
-                'hours': hours,
-                'rate': rate,
-                'total': hours * rate
-            })
-        
-        st.session_state.labor = updated_labor
-        labor_total = sum(item['total'] for item in updated_labor)
-        st.write(f"**Labor Subtotal: ${labor_total:.2f}**")
-
-    # Permits Section
-    with st.expander("📄 Permits and Fees", expanded=True):
-        st.write("### Permits and Fees")
-        
-        updated_permits = []
-        for i, permit in enumerate(st.session_state.permits):
-            st.write(f"#### Permit/Fee {i+1}")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                name = st.text_input(f"Description {i+1}", permit['name'], key=f"permit_name_{i}")
-            with col2:
-                cost = st.number_input(f"Cost ${i+1}", min_value=0.0, value=float(permit['cost']), key=f"permit_cost_{i}")
-            
-            updated_permits.append({
-                'name': name,
-                'cost': cost
-            })
-        
-        st.session_state.permits = updated_permits
-        permits_total = sum(item['cost'] for item in updated_permits)
-        st.write(f"**Permits Subtotal: ${permits_total:.2f}**")
-
-    # Overhead and Profit
-    with st.expander("💰 Overhead and Profit", expanded=True):
-        st.write("### Overhead and Profit")
-        overhead_rate = st.slider("Overhead & Profit Rate (%)", min_value=0, max_value=100, value=int(st.session_state.overhead * 100)) / 100
-        st.session_state.overhead = overhead_rate
-        
-        subtotal = materials_total + labor_total + permits_total
-        overhead_amount = subtotal * overhead_rate
-        st.write(f"**Overhead & Profit: ${overhead_amount:.2f}**")
-
-    # Total
-    total = subtotal + overhead_amount
-    st.write("## Total Estimate")
-    st.write(f"### 💵 Total: ${total:.2f}")
+        # Make permit fees editable
+        permit_item = st.session_state.permits[0] if st.session_state.permits else {"name": "Permit and Inspection Fees", "cost": 0}
+        permit_cost = st.number_input("Permit Fees Total", min_value=0.0, value=float(permit_item["cost"]), key="permit_cost")
+        st.session_state.permits = [{"name": "Permit and Inspection Fees", "cost": permit_cost}]
+        st.metric("Total Permit Fees", f"${permit_cost:,.2f}")
+    
+    # Timeline
+    if "timeline" in data:
+        st.subheader("⏱️ Timeline")
+        timeline = data["timeline"]
+        st.write(f"**Duration:** {timeline['duration']}")
+        st.write(f"**Details:** {timeline['details']}")
+    
+    # Calculate total
+    labor_total = st.session_state.labor[0]["total"] if st.session_state.labor else 0
+    materials_total = sum(item["total"] for item in st.session_state.materials)
+    permit_total = st.session_state.permits[0]["cost"] if st.session_state.permits else 0
+    total_estimate = labor_total + materials_total + permit_total
+    
+    # Total Cost
+    st.markdown("---")
+    st.subheader("💰 Total Estimate")
+    st.metric("Total", f"${total_estimate:,.2f}", help="Including labor, materials, permits, and overhead")
+    
+    # Additional Notes
+    if "additional_notes" in data:
+        st.markdown("---")
+        st.subheader("📝 Additional Notes")
+        st.info(data["additional_notes"])
 
     # Add PDF Export Button
     if st.button("📥 Export as PDF"):
@@ -468,50 +492,62 @@ def display_cost_estimate(estimate_data):
             pdf.cell(0, 10, "Cost Estimate", ln=True, align="C")
             pdf.ln(10)
             
-            # Project Details
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(0, 10, "Project Details", ln=True)
-            pdf.set_font("Arial", "", 12)
-            pdf.multi_cell(0, 10, estimate_data.get('description', ''))
-            pdf.ln(5)
+            # Labor Costs
+            if st.session_state.labor:
+                pdf.set_font("Arial", "B", 14)
+                pdf.cell(0, 10, "Labor Costs", ln=True)
+                pdf.set_font("Arial", "", 12)
+                labor = st.session_state.labor[0]
+                pdf.cell(0, 10, f"Description: {labor['description']}", ln=True)
+                pdf.cell(0, 10, f"Hours: {labor['hours']} @ ${labor['rate']}/hr = ${labor['total']:.2f}", ln=True)
+                pdf.ln(5)
             
             # Materials
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(0, 10, "Materials", ln=True)
-            pdf.set_font("Arial", "", 12)
-            for material in st.session_state.materials:
-                pdf.cell(0, 10, f"{material['name']} - Qty: {material['quantity']} - ${material['price']}/unit - Total: ${material['total']:.2f}", ln=True)
-            pdf.cell(0, 10, f"Materials Subtotal: ${materials_total:.2f}", ln=True)
-            pdf.ln(5)
-            
-            # Labor
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(0, 10, "Labor", ln=True)
-            pdf.set_font("Arial", "", 12)
-            for labor in st.session_state.labor:
-                pdf.cell(0, 10, f"{labor['description']} - {labor['hours']} hrs @ ${labor['rate']}/hr - Total: ${labor['total']:.2f}", ln=True)
-            pdf.cell(0, 10, f"Labor Subtotal: ${labor_total:.2f}", ln=True)
-            pdf.ln(5)
+            if st.session_state.materials:
+                pdf.set_font("Arial", "B", 14)
+                pdf.cell(0, 10, "Materials", ln=True)
+                pdf.set_font("Arial", "", 12)
+                for material in st.session_state.materials:
+                    pdf.cell(0, 10, f"{material['name']} - Qty: {material['quantity']} @ ${material['price']}/unit = ${material['total']:.2f}", ln=True)
+                pdf.cell(0, 10, f"Materials Total: ${materials_total:.2f}", ln=True)
+                pdf.ln(5)
             
             # Permits
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(0, 10, "Permits and Fees", ln=True)
-            pdf.set_font("Arial", "", 12)
-            for permit in st.session_state.permits:
-                pdf.cell(0, 10, f"{permit['name']} - ${permit['cost']:.2f}", ln=True)
-            pdf.cell(0, 10, f"Permits Subtotal: ${permits_total:.2f}", ln=True)
-            pdf.ln(5)
+            if "permit_fees" in data:
+                pdf.set_font("Arial", "B", 14)
+                pdf.cell(0, 10, "Permits and Inspections", ln=True)
+                pdf.set_font("Arial", "", 12)
+                if "permits_required" in permit:
+                    pdf.cell(0, 10, "Required Permits:", ln=True)
+                    for p in permit["permits_required"]:
+                        pdf.cell(0, 10, f"- {p}", ln=True)
+                if "inspections_required" in permit:
+                    pdf.cell(0, 10, "Required Inspections:", ln=True)
+                    for i in permit["inspections_required"]:
+                        pdf.cell(0, 10, f"- {i}", ln=True)
+                pdf.cell(0, 10, f"Permit Fees Total: ${permit_total:.2f}", ln=True)
+                pdf.ln(5)
             
-            # Overhead
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(0, 10, "Overhead and Profit", ln=True)
-            pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 10, f"Overhead & Profit ({overhead_rate*100}%): ${overhead_amount:.2f}", ln=True)
-            pdf.ln(5)
+            # Timeline
+            if "timeline" in data:
+                pdf.set_font("Arial", "B", 14)
+                pdf.cell(0, 10, "Timeline", ln=True)
+                pdf.set_font("Arial", "", 12)
+                pdf.cell(0, 10, f"Duration: {timeline['duration']}", ln=True)
+                pdf.multi_cell(0, 10, f"Details: {timeline['details']}")
+                pdf.ln(5)
             
             # Total
             pdf.set_font("Arial", "B", 16)
-            pdf.cell(0, 10, f"Total Estimate: ${total:.2f}", ln=True)
+            pdf.cell(0, 10, f"Total Estimate: ${total_estimate:.2f}", ln=True)
+            
+            # Additional Notes
+            if "additional_notes" in data:
+                pdf.ln(5)
+                pdf.set_font("Arial", "B", 14)
+                pdf.cell(0, 10, "Additional Notes", ln=True)
+                pdf.set_font("Arial", "", 12)
+                pdf.multi_cell(0, 10, data["additional_notes"])
             
             # Save PDF to temp file
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
