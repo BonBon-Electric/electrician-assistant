@@ -10,6 +10,7 @@ import json
 from typing import List, Dict, Any
 import pandas as pd
 from translations import TRANSLATIONS
+import re
 
 # Load environment variables
 load_dotenv()
@@ -62,30 +63,54 @@ def update_chat_history(role: str, content: str):
     if len(st.session_state.chat_history) > 10:
         st.session_state.chat_history = st.session_state.chat_history[-10:]
 
+def get_nec_assistant_prompt(query: str) -> str:
+    """Generate the prompt for the NEC Electrical Assistant"""
+    return f"""You are an expert electrical contractor and NEC code specialist. Answer the following question about electrical work:
+
+{query}
+
+Structure your response in this format:
+
+SUMMARY:
+Provide a brief, practical explanation of how to accomplish the task. Focus on the key steps and important safety considerations. This should be 2-3 sentences that give a high-level overview of the process.
+
+RELEVANT NEC CODES:
+List and explain the relevant NEC codes that apply to this work. Format each code reference as a clickable link using this format:
+NEC XXX.YY 📖 (section title): Brief explanation of the requirement.
+
+DETAILED RESPONSE:
+Provide a detailed, step-by-step explanation of how to properly complete the work, including:
+1. Required permits and inspections
+2. Safety precautions and PPE requirements
+3. Tools and materials needed
+4. Step-by-step installation/repair process
+5. Testing and verification procedures
+6. Common mistakes to avoid
+
+Ensure all technical information is accurate and code-compliant."""
+
+def format_nec_response(response: str) -> str:
+    """Format the NEC assistant response with proper styling and links"""
+    
+    # Add NFPA link formatting
+    def replace_nec_reference(match):
+        code = match.group(1)
+        return f'<a href="https://www.nfpa.org/codes-and-standards/all-codes-and-standards/list-of-codes-and-standards/detail?code=70&section={code}" target="_blank">NEC {code}</a>'
+    
+    # Format NEC code references as links
+    response = re.sub(r'NEC (\d+\.\d+)', replace_nec_reference, response)
+    
+    # Add emoji to section headers
+    response = re.sub(r'^SUMMARY:', '📋 SUMMARY:', response, flags=re.MULTILINE)
+    response = re.sub(r'^RELEVANT NEC CODES:', '📚 RELEVANT NEC CODES:', response, flags=re.MULTILINE)
+    response = re.sub(r'^DETAILED RESPONSE:', '🔍 DETAILED RESPONSE:', response, flags=re.MULTILINE)
+    
+    return response
+
 def get_gemini_response(prompt: str, context: str = "") -> str:
     """Get response from Gemini model"""
     try:
-        structured_prompt = f"""As an expert electrician assistant, analyze the following question and provide a response in this specific format:
-
-SUMMARY:
-- Provide a brief summary of the key points and concerns in the question
-
-RELEVANT NEC CODES:
-- List each relevant NEC code number and title
-- For each code:
-  * Explain the specific requirements
-  * Detail what needs to be done for compliance
-  * Note any exceptions or special conditions
-
-DETAILED RESPONSE:
-- Provide a comprehensive answer addressing all aspects of the question
-- Include practical advice and best practices
-- Mention any safety considerations
-
-Question: {prompt}
-{context}"""
-        
-        response = model.generate_content(structured_prompt)
+        response = model.generate_content(prompt)
         return response.text
     except Exception as e:
         st.error(f"Error getting response from Gemini: {str(e)}")
@@ -102,25 +127,6 @@ def is_electrical_question(text: str) -> bool:
                          'outlet', 'switch', 'power', 'install', 'repair', 'light', 'socket', 'nec']
     return any(keyword in text.lower() for keyword in electrical_keywords)
 
-def format_nec_references(text: str) -> str:
-    """
-    Extract NEC code references from text and make them clickable.
-    Matches patterns like 'NEC 210.12', 'Article 210.12', etc.
-    """
-    import re
-    
-    # Pattern to match NEC references
-    nec_pattern = r'(?:NEC|Article)\s+(\d+\.?\d*(?:\([a-z]\))?(?:\(\d+\))?)'
-    
-    def replace_with_link(match):
-        code = match.group(1)
-        # Using NFPA's free access portal
-        return f'[{match.group(0)}](https://www.nfpa.org/codes-and-standards/all-codes-and-standards/list-of-codes-and-standards/detail?code=70&section={code}) 📖'
-    
-    # Replace NEC references with clickable links
-    text_with_links = re.sub(nec_pattern, replace_with_link, text)
-    return text_with_links
-
 def get_chat_response(prompt: str) -> str:
     """Get response from Gemini model with enhanced NEC reference handling"""
     context = ""
@@ -128,22 +134,12 @@ def get_chat_response(prompt: str) -> str:
     # Check if it's an electrical code question
     if is_electrical_question(prompt):
         # Enhance the prompt to encourage NEC references
-        prompt = f"""As an electrical code expert, please answer the following question, 
-        citing specific NEC (National Electrical Code) articles and sections where applicable. 
-        When referencing code sections, use the format 'NEC XXX.XX' or 'Article XXX.XX' 
-        (for example: 'NEC 210.12' or 'Article 210.12').
-
-        Question: {prompt}
-
-        Please provide:
-        1. A clear answer with specific NEC code references
-        2. Brief explanation of why these code sections are relevant
-        3. Any important safety considerations"""
+        prompt = get_nec_assistant_prompt(prompt)
     
     response = get_gemini_response(prompt, context)
     
     # Format NEC references as clickable links
-    response_with_links = format_nec_references(response)
+    response_with_links = format_nec_response(response)
     return response_with_links
 
 def display_chat_history():
@@ -152,7 +148,7 @@ def display_chat_history():
         with st.chat_message(message["role"]):
             if message["role"] == "assistant":
                 # Format NEC references in assistant's responses
-                formatted_message = format_nec_references(message["content"])
+                formatted_message = format_nec_response(message["content"])
                 st.markdown(formatted_message, unsafe_allow_html=True)
             else:
                 st.write(message["content"])
