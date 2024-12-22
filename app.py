@@ -223,13 +223,51 @@ def create_cost_estimate(description: str, additional_info: dict = None):
     6. Any potential additional costs or variables
     7. Confidence level of the estimate based on information provided
     
-    Format the response as a JSON object with these categories."""
+    Format the response in this exact JSON structure:
+    {{
+        "labor_costs": {{
+            "description": "string",
+            "total_hours": number,
+            "rate_per_hour": number,
+            "total": number
+        }},
+        "material_costs": {{
+            "items": [
+                {{
+                    "item": "string",
+                    "quantity": number,
+                    "price": number,
+                    "total": number
+                }}
+            ],
+            "total": number
+        }},
+        "permit_fees": {{
+            "description": "string",
+            "total": number
+        }},
+        "timeline": {{
+            "duration": "string",
+            "details": "string"
+        }},
+        "confidence_level": "string",
+        "total_estimate": number,
+        "additional_notes": "string"
+    }}"""
     
     try:
-        response = model.generate_content(prompt).text
+        response = model.generate_content(prompt)
+        response_text = response.text.strip()
+        
+        # Clean up the response to ensure it's valid JSON
+        # Remove any markdown code block markers
+        response_text = re.sub(r'```json\s*|\s*```', '', response_text)
+        
         # Parse the response into a dictionary
-        estimate_data = json.loads(response)
+        estimate_data = json.loads(response_text)
         return {"status": "complete", "data": estimate_data}
+    except json.JSONDecodeError as e:
+        return {"status": "error", "message": f"Invalid JSON format: {str(e)}"}
     except Exception as e:
         return {"status": "error", "message": f"Error generating estimate: {str(e)}"}
 
@@ -258,6 +296,11 @@ def display_cost_estimate_form():
                 "Property Type",
                 options=["", "Residential", "Commercial", "Industrial"],
                 index=0
+            )
+            square_footage = st.number_input(
+                "Square Footage",
+                min_value=0,
+                help="Enter the approximate square footage of the property"
             )
             city = st.text_input("City")
             state = st.selectbox(
@@ -300,10 +343,11 @@ def display_cost_estimate_form():
                 options=["", "Standard", "Premium", "Luxury"],
                 value=""
             )
-            
+    
     # Collect all the additional information
     additional_info = {
         "Property Type": location_type,
+        "Square Footage": square_footage if square_footage > 0 else "",
         "City": city,
         "State": state,
         "Voltage": voltage,
@@ -362,13 +406,13 @@ def display_cost_estimate(estimate_data):
         
         # Total Cost
         st.subheader("💰 Total Cost")
-        if "total_cost" in data:
-            st.metric("Estimated Total", f"${data['total_cost']:,.2f}")
+        if "total_estimate" in data:
+            st.metric("Estimated Total", f"${data['total_estimate']:,.2f}")
         
         # Additional Notes
-        if "additional_costs" in data:
+        if "additional_notes" in data:
             st.subheader("📝 Additional Notes")
-            st.write(data["additional_costs"])
+            st.write(data["additional_notes"])
             
         # Disclaimer for generic estimates
         if not any(k for k in estimate_data.get("data", {}).keys() if k.startswith("user_")):
