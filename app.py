@@ -114,8 +114,8 @@ def format_nec_references(text: str) -> str:
     
     def replace_with_link(match):
         code = match.group(1)
-        # Create a markdown link that opens in a new tab
-        return f'[{match.group(0)}](https://up.codes/viewer/nec_2020/{code}) 🔗'
+        # Using NFPA's free access portal
+        return f'[{match.group(0)}](https://www.nfpa.org/codes-and-standards/all-codes-and-standards/list-of-codes-and-standards/detail?code=70&section={code}) 📖'
     
     # Replace NEC references with clickable links
     text_with_links = re.sub(nec_pattern, replace_with_link, text)
@@ -130,9 +130,15 @@ def get_chat_response(prompt: str) -> str:
         # Enhance the prompt to encourage NEC references
         prompt = f"""As an electrical code expert, please answer the following question, 
         citing specific NEC (National Electrical Code) articles and sections where applicable. 
-        Use the format 'NEC XXX.XX' or 'Article XXX.XX' when referencing code sections:
+        When referencing code sections, use the format 'NEC XXX.XX' or 'Article XXX.XX' 
+        (for example: 'NEC 210.12' or 'Article 210.12').
 
-        {prompt}"""
+        Question: {prompt}
+
+        Please provide:
+        1. A clear answer with specific NEC code references
+        2. Brief explanation of why these code sections are relevant
+        3. Any important safety considerations"""
     
     response = get_gemini_response(prompt, context)
     
