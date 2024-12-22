@@ -9,6 +9,7 @@ import chromadb
 import json
 from typing import List, Dict, Any
 import pandas as pd
+from translations import TRANSLATIONS
 
 # Load environment variables
 load_dotenv()
@@ -36,18 +37,24 @@ try:
 except:
     collection = chroma_client.create_collection(name="electrician_docs")
 
+def get_text(key: str) -> str:
+    """Get translated text based on current language"""
+    return TRANSLATIONS[st.session_state.language][key]
+
 def initialize_session_state():
     """Initialize session state variables"""
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "current_tab" not in st.session_state:
-        st.session_state.current_tab = "NEC Electrical Assistant"
+        st.session_state.current_tab = get_text('nec_assistant')
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
     if 'conversation_context' not in st.session_state:
         st.session_state.conversation_context = []
     if 'estimates_history' not in st.session_state:
         st.session_state.estimates_history = []
+    if 'language' not in st.session_state:
+        st.session_state.language = 'en'
 
 def update_chat_history(role: str, content: str):
     st.session_state.chat_history.append({"role": role, "content": content})
@@ -263,13 +270,21 @@ def display_chat_history():
             st.write(message["content"])
 
 def main():
-    st.title("Electrician Assistant")
+    # Language selector in sidebar
+    st.sidebar.selectbox(
+        "Select Language / Seleccionar Idioma",
+        options=['English', 'Español'],
+        key='language_choice',
+        on_change=lambda: setattr(st.session_state, 'language', 'en' if st.session_state.language_choice == 'English' else 'es')
+    )
+    
+    st.title(get_text('app_title'))
     initialize_session_state()
     
     # Create mode selector in the main content area
     st.session_state.current_tab = st.radio(
         "",  # Empty label for cleaner look
-        ["💡 NEC Electrical Assistant", "💰 Cost Estimator"],
+        [get_text('nec_assistant'), get_text('cost_estimator')],
         horizontal=True,  # Make the radio buttons horizontal
         label_visibility="collapsed"  # Hide the empty label
     )
@@ -277,34 +292,37 @@ def main():
     st.divider()  # Add a visual separator
     
     # Main content
-    if st.session_state.current_tab == "💡 NEC Electrical Assistant":
-        st.write("## NEC Electrical Assistant")
+    if st.session_state.current_tab == get_text('nec_assistant'):
+        st.write(f"## {get_text('nec_assistant')}")
         display_chat_history()
         
-        if prompt := st.chat_input("Ask your question about electrical work:"):
+        if prompt := st.chat_input(get_text('chat_placeholder')):
             update_chat_history("user", prompt)
             with st.chat_message("user"):
                 st.write(prompt)
                 
             with st.chat_message("assistant"):
-                with st.spinner("Thinking..."):
+                with st.spinner(get_text('thinking')):
                     response = get_chat_response(prompt)
                     st.write(response)
     
     else:  # Cost Estimator
-        st.write("## Cost Estimator")
-        st.write("Describe the electrical work you need, and I'll provide a detailed cost estimate.")
+        st.write(f"## {get_text('cost_estimator_title')}")
+        st.write(get_text('cost_estimator_description'))
         
-        job_description = st.text_area("Job Description:", height=100,
-            placeholder="Example: Install a 200 amp service panel in a residential home in Los Angeles")
+        job_description = st.text_area(
+            get_text('job_description'),
+            height=100,
+            placeholder=get_text('job_description_placeholder')
+        )
         
-        if st.button("Generate Estimate", type="primary"):
+        if st.button(get_text('generate_estimate'), type="primary"):
             if job_description:
-                with st.spinner("Generating cost estimate..."):
+                with st.spinner(get_text('generating_estimate')):
                     estimate = create_cost_estimate(job_description)
                     display_cost_estimate(estimate)
             else:
-                st.warning("Please provide a job description.")
+                st.warning(get_text('provide_description'))
 
 if __name__ == "__main__":
     main()
