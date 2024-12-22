@@ -43,6 +43,8 @@ def get_text(key: str) -> str:
 
 def initialize_session_state():
     """Initialize session state variables"""
+    if "language" not in st.session_state:
+        st.session_state.language = "en"
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "current_tab" not in st.session_state:
@@ -53,8 +55,6 @@ def initialize_session_state():
         st.session_state.conversation_context = []
     if 'estimates_history' not in st.session_state:
         st.session_state.estimates_history = []
-    if 'language' not in st.session_state:
-        st.session_state.language = 'en'
 
 def update_chat_history(role: str, content: str):
     st.session_state.chat_history.append({"role": role, "content": content})
@@ -102,184 +102,196 @@ def is_electrical_question(text: str) -> bool:
                          'outlet', 'switch', 'power', 'install', 'repair', 'light', 'socket', 'nec']
     return any(keyword in text.lower() for keyword in electrical_keywords)
 
+def format_nec_references(text: str) -> str:
+    """
+    Extract NEC code references from text and make them clickable.
+    Matches patterns like 'NEC 210.12', 'Article 210.12', etc.
+    """
+    import re
+    
+    # Pattern to match NEC references
+    nec_pattern = r'(?:NEC|Article)\s+(\d+\.?\d*(?:\([a-z]\))?(?:\(\d+\))?)'
+    
+    def replace_with_link(match):
+        code = match.group(1)
+        # Create a markdown link that opens in a new tab
+        return f'[{match.group(0)}](https://up.codes/viewer/nec_2020/{code}) 🔗'
+    
+    # Replace NEC references with clickable links
+    text_with_links = re.sub(nec_pattern, replace_with_link, text)
+    return text_with_links
+
 def get_chat_response(prompt: str) -> str:
-    # Include chat history in the context
-    context = "\n".join([f"{msg['role']}: {msg['content']}" 
-                        for msg in st.session_state.chat_history[-3:]])
+    """Get response from Gemini model with enhanced NEC reference handling"""
+    context = ""
     
-    if is_greeting(prompt):
-        # Extract name if present
-        name = ""
-        if "name is" in prompt.lower():
-            name = prompt.lower().split("name is")[-1].strip()
-            name = name.split()[0].title()  # Get first word and capitalize
-        
-        response = f"Hello{' ' + name if name else ''}! I'm your electrical assistant. How can I help you today?"
-        return response
+    # Check if it's an electrical code question
+    if is_electrical_question(prompt):
+        # Enhance the prompt to encourage NEC references
+        prompt = f"""As an electrical code expert, please answer the following question, 
+        citing specific NEC (National Electrical Code) articles and sections where applicable. 
+        Use the format 'NEC XXX.XX' or 'Article XXX.XX' when referencing code sections:
+
+        {prompt}"""
     
-    elif is_electrical_question(prompt):
-        full_prompt = f"""Previous conversation context:
-{context}
-
-Current question:
-{prompt}
-
-Respond in this format:
-SUMMARY:
-[Provide a brief, direct answer to the user's question in 1-2 sentences]
-
-RELEVANT NEC CODES:
-[List relevant NEC codes]
-
-DETAILED RESPONSE:
-[Provide detailed explanation]"""
-    else:
-        # For general conversation
-        full_prompt = f"""Previous conversation context:
-{context}
-
-Current question:
-{prompt}
-
-Respond conversationally and naturally to the user's message."""
-
-    response = get_gemini_response(full_prompt)
-    update_chat_history("assistant", response)
-    return response
-
-def create_cost_estimate(description: str) -> Dict[str, Any]:
-    """Generate a cost estimate based on the job description"""
-    prompt = f"""Create a detailed cost estimate for the following electrical job in Los Angeles County, California:
-{description}
-
-Consider the following Los Angeles-specific factors:
-- Los Angeles County permit fees and requirements
-- Los Angeles area labor rates (average $85-125/hour for licensed electricians)
-- Local material costs including California markups
-- Los Angeles County inspection requirements
-- Title 24 energy efficiency requirements
-- Additional requirements specific to LA County jurisdiction
-
-Please provide the response in the following JSON format:
-{{
-    "materials": [
-        {{"item": "string", "quantity": number, "unit": "string", "cost_per_unit": number, "total_cost": number}}
-    ],
-    "labor": {{
-        "hours": number,
-        "rate_per_hour": number,
-        "total_labor_cost": number
-    }},
-    "permits": {{
-        "required_permits": ["string"],
-        "total_permit_cost": number,
-        "inspection_requirements": ["string"]
-    }},
-    "summary": {{
-        "materials_total": number,
-        "labor_total": number,
-        "permits_total": number,
-        "subtotal": number,
-        "contingency": number,
-        "total_cost": number
-    }},
-    "notes": ["string"],
-    "compliance": {{
-        "title_24": ["string"],
-        "local_requirements": ["string"]
-    }}
-}}
-
-Include realistic Los Angeles County costs, quantities, and a 10% contingency factor. Format all monetary values as numbers without currency symbols."""
+    response = get_gemini_response(prompt, context)
     
-    try:
-        response = get_gemini_response(prompt)
-        # Ensure the response is valid JSON
-        estimate = json.loads(response)
-        return estimate
-    except json.JSONDecodeError as e:
-        st.error(f"Error parsing cost estimate. Please try again.")
-        return {}
-
-def display_cost_estimate(estimate: Dict[str, Any]):
-    """Display the cost estimate in a formatted way"""
-    if not estimate:
-        return
-
-    st.subheader("📋 Cost Estimate Breakdown")
-    
-    # Materials Section
-    st.write("### 🛠️ Materials")
-    materials_df = pd.DataFrame(estimate['materials'])
-    materials_df['total_cost'] = materials_df['total_cost'].apply(lambda x: f"${x:,.2f}")
-    materials_df['cost_per_unit'] = materials_df['cost_per_unit'].apply(lambda x: f"${x:,.2f}")
-    st.dataframe(materials_df, hide_index=True)
-
-    # Labor Section
-    st.write("### 👷 Labor")
-    labor = estimate['labor']
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Total Hours", f"{labor['hours']} hrs")
-    with col2:
-        st.metric("Hourly Rate", f"${labor['rate_per_hour']}/hr")
-    st.metric("Total Labor Cost", f"${labor['total_labor_cost']:,.2f}")
-
-    # Permits Section
-    st.write("### 📄 Permits and Inspections")
-    st.write("Required Permits:")
-    for permit in estimate['permits']['required_permits']:
-        st.write(f"- {permit}")
-    st.write("Inspection Requirements:")
-    for req in estimate['permits']['inspection_requirements']:
-        st.write(f"- {req}")
-    st.metric("Total Permit Cost", f"${estimate['permits']['total_permit_cost']:,.2f}")
-
-    # Compliance Section
-    st.write("### ✅ Compliance Requirements")
-    st.write("Title 24:")
-    for req in estimate['compliance']['title_24']:
-        st.write(f"- {req}")
-    st.write("Local Requirements:")
-    for req in estimate['compliance']['local_requirements']:
-        st.write(f"- {req}")
-
-    # Summary Section
-    st.write("### 💰 Cost Summary")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Materials Total", f"${estimate['summary']['materials_total']:,.2f}")
-    with col2:
-        st.metric("Labor Total", f"${estimate['summary']['labor_total']:,.2f}")
-    with col3:
-        st.metric("Permits Total", f"${estimate['summary']['permits_total']:,.2f}")
-    
-    st.metric("Subtotal", f"${estimate['summary']['subtotal']:,.2f}")
-    st.metric("Contingency (10%)", f"${estimate['summary']['contingency']:,.2f}")
-    st.metric("Total Cost", f"${estimate['summary']['total_cost']:,.2f}", delta="Includes contingency")
-
-    # Notes Section
-    if estimate.get('notes'):
-        st.write("### 📝 Additional Notes")
-        for note in estimate['notes']:
-            st.write(f"- {note}")
+    # Format NEC references as clickable links
+    response_with_links = format_nec_references(response)
+    return response_with_links
 
 def display_chat_history():
+    """Display chat history with clickable NEC references"""
     for message in st.session_state.chat_history:
         with st.chat_message(message["role"]):
-            st.write(message["content"])
+            if message["role"] == "assistant":
+                # Format NEC references in assistant's responses
+                formatted_message = format_nec_references(message["content"])
+                st.markdown(formatted_message, unsafe_allow_html=True)
+            else:
+                st.write(message["content"])
+
+def create_cost_estimate(description: str):
+    """Generate a cost estimate based on the job description"""
+    # Initialize estimate conversation if not exists
+    if 'estimate_conversation' not in st.session_state:
+        st.session_state.estimate_conversation = []
+        
+    # Add user's description to conversation
+    if not st.session_state.estimate_conversation:
+        st.session_state.estimate_conversation.append({"role": "user", "content": description})
+    
+    # Prepare the prompt with required information checklist
+    required_info = {
+        'location': ['city', 'state', 'property type (residential/commercial)'],
+        'electrical': ['voltage requirements', 'amperage', 'number of circuits'],
+        'scope': ['timeline', 'accessibility', 'existing conditions'],
+        'materials': ['specific equipment preferences', 'quality grade (standard/premium)']
+    }
+    
+    # Check if we have all required information
+    missing_info = []
+    description_lower = description.lower()
+    
+    for category, items in required_info.items():
+        for item in items:
+            # Simple check for presence of keywords
+            if not any(keyword in description_lower for keyword in item.lower().split()):
+                missing_info.append(item)
+    
+    # If information is missing, generate follow-up questions
+    if missing_info:
+        prompt = f"""Based on the following job description: '{description}', 
+        I notice some important details are missing. Please help me gather the following information:
+        
+        {', '.join(missing_info)}
+        
+        Please provide a friendly response asking for these details, explaining why they're important for an accurate estimate."""
+        
+        response = model.generate_content(prompt).text
+        
+        # Add the response to conversation
+        st.session_state.estimate_conversation.append({"role": "assistant", "content": response})
+        return {"status": "need_more_info", "message": response}
+    
+    # If we have all information, generate the estimate
+    prompt = f"""As an experienced electrical contractor, create a detailed cost estimate for the following job:
+    {description}
+    
+    Please include:
+    1. Labor costs (breakdown of hours and rates)
+    2. Material costs (itemized list with prices)
+    3. Permit fees and inspections
+    4. Overhead and profit
+    5. Timeline for completion
+    6. Any potential additional costs or variables
+    
+    Format the response as a JSON object with these categories."""
+    
+    try:
+        response = model.generate_content(prompt).text
+        # Parse the response into a dictionary
+        estimate_data = json.loads(response)
+        return {"status": "complete", "data": estimate_data}
+    except Exception as e:
+        return {"status": "error", "message": f"Error generating estimate: {str(e)}"}
+
+def display_cost_estimate(estimate_data):
+    """Display the cost estimate or follow-up questions"""
+    if estimate_data["status"] == "need_more_info":
+        st.write("📝 Additional Information Needed:")
+        st.write(estimate_data["message"])
+        
+        # Display the conversation history
+        for message in st.session_state.estimate_conversation:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
+                
+        # Add input for user's response
+        if user_response := st.chat_input("Your response:"):
+            st.session_state.estimate_conversation.append({"role": "user", "content": user_response})
+            # Combine all user responses for a complete description
+            full_description = " ".join([msg["content"] for msg in st.session_state.estimate_conversation if msg["role"] == "user"])
+            new_estimate = create_cost_estimate(full_description)
+            display_cost_estimate(new_estimate)
+            
+    elif estimate_data["status"] == "complete":
+        st.success("✅ Cost Estimate Generated")
+        
+        # Display the estimate in a structured format
+        data = estimate_data["data"]
+        
+        # Labor Costs
+        st.subheader("👷 Labor Costs")
+        if "labor_costs" in data:
+            st.write(data["labor_costs"])
+            
+        # Material Costs
+        st.subheader("🛠️ Materials")
+        if "material_costs" in data:
+            st.write(data["material_costs"])
+            
+        # Permits and Inspections
+        st.subheader("📋 Permits and Inspections")
+        if "permit_fees" in data:
+            st.write(data["permit_fees"])
+            
+        # Timeline
+        st.subheader("⏱️ Timeline")
+        if "timeline" in data:
+            st.write(data["timeline"])
+            
+        # Total Cost
+        st.subheader("💰 Total Cost")
+        if "total_cost" in data:
+            st.metric("Estimated Total", f"${data['total_cost']:,.2f}")
+            
+        # Additional Notes
+        if "additional_costs" in data:
+            st.subheader("📝 Additional Notes")
+            st.write(data["additional_costs"])
+    else:
+        st.error(estimate_data["message"])
 
 def main():
+    initialize_session_state()  # Initialize first!
+    
     # Language selector in sidebar
-    st.sidebar.selectbox(
-        "🌐 Select Language / Seleccionar Idioma",  # Added globe emoji
+    current_language = 'English' if st.session_state.language == 'en' else 'Español'
+    selected_language = st.sidebar.selectbox(
+        "🌐 Select Language / Seleccionar Idioma",
         options=['English', 'Español'],
-        key='language_choice',
-        on_change=lambda: setattr(st.session_state, 'language', 'en' if st.session_state.language_choice == 'English' else 'es')
+        index=['English', 'Español'].index(current_language)
     )
     
+    # Update language state if changed
+    if (selected_language == 'English' and st.session_state.language != 'en') or \
+       (selected_language == 'Español' and st.session_state.language != 'es'):
+        st.session_state.language = 'en' if selected_language == 'English' else 'es'
+        st.rerun()  # Rerun to update all translations
+    
+    # Now we can safely use get_text since language is initialized
     st.title(get_text('app_title'))
-    initialize_session_state()
     
     # Create mode selector in the main content area
     st.session_state.current_tab = st.radio(
