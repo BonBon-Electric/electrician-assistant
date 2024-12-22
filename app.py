@@ -209,7 +209,7 @@ def create_cost_estimate(description: str, additional_info: dict = None):
             if value:  # Only add if value is provided
                 full_description += f"- {key}: {value}\n"
     
-    prompt = f"""As an experienced electrical contractor, create a detailed cost estimate for the following job:
+    prompt = f"""As an experienced electrical contractor in Los Angeles County, create a detailed cost estimate for the following job:
     {full_description}
     
     Note: This is a {'detailed' if additional_info else 'general'} estimate based on the information provided.
@@ -217,10 +217,9 @@ def create_cost_estimate(description: str, additional_info: dict = None):
     Please include:
     1. Labor costs (breakdown of hours and rates)
     2. Material costs (itemized list with prices)
-    3. Permit fees and inspections
+    3. Los Angeles County permits and inspections required for this specific job
     4. Timeline for completion
     5. Any potential additional costs or variables
-    6. Confidence level of the estimate based on information provided
     
     Format the response in this exact JSON structure:
     {{
@@ -242,19 +241,22 @@ def create_cost_estimate(description: str, additional_info: dict = None):
             "total": number
         }},
         "permit_fees": {{
-            "description": "string",
+            "permits_required": ["string"],
+            "inspections_required": ["string"],
             "total": number
         }},
         "timeline": {{
             "duration": "string",
             "details": "string"
         }},
-        "confidence_level": "string",
         "total_estimate": number,
         "additional_notes": "string"
     }}
     
-    IMPORTANT: Return ONLY the JSON object, no additional text or formatting."""
+    IMPORTANT: 
+    - Return ONLY the JSON object, no additional text or formatting
+    - For permit_fees, list SPECIFIC Los Angeles County permits and inspections required for this job
+    - Include actual current LA County permit fee amounts"""
     
     try:
         response = model.generate_content(prompt)
@@ -281,6 +283,81 @@ def create_cost_estimate(description: str, additional_info: dict = None):
             
     except Exception as e:
         return {"status": "error", "message": f"Error generating estimate: {str(e)}"}
+
+def display_cost_estimate(estimate_data):
+    """Display the cost estimate in a formatted way"""
+    if estimate_data["status"] == "error":
+        st.error(estimate_data["message"])
+        return
+        
+    data = estimate_data["data"]
+    
+    # Labor Costs
+    if "labor_costs" in data:
+        st.subheader("👷 Labor Costs")
+        labor = data["labor_costs"]
+        st.write(f"**Description:** {labor['description']}")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Hours", f"{labor['total_hours']}")
+        with col2:
+            st.metric("Rate", f"${labor['rate_per_hour']}/hr")
+        with col3:
+            st.metric("Total Labor", f"${labor['total']:,.2f}")
+    
+    # Materials
+    if "material_costs" in data:
+        st.subheader("🔧 Materials")
+        materials = data["material_costs"]
+        
+        # Create a DataFrame for better display
+        if "items" in materials:
+            items_data = []
+            for item in materials["items"]:
+                items_data.append({
+                    "Item": item["item"],
+                    "Quantity": item["quantity"],
+                    "Price/Unit": f"${item['price']:,.2f}",
+                    "Total": f"${item['total']:,.2f}"
+                })
+            
+            if items_data:
+                df = pd.DataFrame(items_data)
+                st.dataframe(df, use_container_width=True)
+                st.metric("Total Materials", f"${materials['total']:,.2f}")
+    
+    # Permit Fees
+    if "permit_fees" in data:
+        st.subheader("📋 Los Angeles County Permits & Inspections")
+        permit = data["permit_fees"]
+        if "permits_required" in permit:
+            st.write("**Required Permits:**")
+            for p in permit["permits_required"]:
+                st.write(f"- {p}")
+        if "inspections_required" in permit:
+            st.write("**Required Inspections:**")
+            for i in permit["inspections_required"]:
+                st.write(f"- {i}")
+        st.metric("Total Permit Fees", f"${permit['total']:,.2f}")
+    
+    # Timeline
+    if "timeline" in data:
+        st.subheader("⏱️ Timeline")
+        timeline = data["timeline"]
+        st.write(f"**Duration:** {timeline['duration']}")
+        st.write(f"**Details:** {timeline['details']}")
+    
+    # Total Cost
+    if "total_estimate" in data:
+        st.markdown("---")
+        st.subheader("💰 Total Estimate")
+        st.metric("Total", f"${data['total_estimate']:,.2f}", help="Including labor, materials, permits, and overhead")
+    
+    # Additional Notes
+    if "additional_notes" in data:
+        st.markdown("---")
+        st.subheader("📝 Additional Notes")
+        st.info(data["additional_notes"])
 
 def display_cost_estimate_form():
     """Display the cost estimate form with optional fields"""
@@ -378,78 +455,6 @@ def display_cost_estimate_form():
                 display_cost_estimate(estimate)
         else:
             st.warning(get_text('provide_description'))
-
-def display_cost_estimate(estimate_data):
-    """Display the cost estimate in a formatted way"""
-    if estimate_data["status"] == "error":
-        st.error(estimate_data["message"])
-        return
-        
-    data = estimate_data["data"]
-    
-    # Confidence Level
-    if "confidence_level" in data:
-        st.write(f"**Confidence Level:** {data['confidence_level']}")
-    
-    # Labor Costs
-    if "labor_costs" in data:
-        st.subheader("👷 Labor Costs")
-        labor = data["labor_costs"]
-        st.write(f"**Description:** {labor['description']}")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Hours", f"{labor['total_hours']}")
-        with col2:
-            st.metric("Rate", f"${labor['rate_per_hour']}/hr")
-        with col3:
-            st.metric("Total Labor", f"${labor['total']:,.2f}")
-    
-    # Materials
-    if "material_costs" in data:
-        st.subheader("🔧 Materials")
-        materials = data["material_costs"]
-        
-        # Create a DataFrame for better display
-        if "items" in materials:
-            items_data = []
-            for item in materials["items"]:
-                items_data.append({
-                    "Item": item["item"],
-                    "Quantity": item["quantity"],
-                    "Price/Unit": f"${item['price']:,.2f}",
-                    "Total": f"${item['total']:,.2f}"
-                })
-            
-            if items_data:
-                df = pd.DataFrame(items_data)
-                st.dataframe(df, use_container_width=True)
-                st.metric("Total Materials", f"${materials['total']:,.2f}")
-    
-    # Permit Fees
-    if "permit_fees" in data:
-        st.subheader("📋 Permit Fees")
-        permit = data["permit_fees"]
-        st.write(f"**Description:** {permit['description']}")
-        st.metric("Permit Total", f"${permit['total']:,.2f}")
-    
-    # Timeline
-    if "timeline" in data:
-        st.subheader("⏱️ Timeline")
-        timeline = data["timeline"]
-        st.write(f"**Duration:** {timeline['duration']}")
-        st.write(f"**Details:** {timeline['details']}")
-    
-    # Total Cost
-    if "total_estimate" in data:
-        st.markdown("---")
-        st.subheader("💰 Total Estimate")
-        st.metric("Total", f"${data['total_estimate']:,.2f}", help="Including labor, materials, permits, and overhead")
-    
-    # Additional Notes
-    if "additional_notes" in data:
-        st.markdown("---")
-        st.subheader("📝 Additional Notes")
-        st.info(data["additional_notes"])
 
 def main():
     initialize_session_state()  # Initialize first!
