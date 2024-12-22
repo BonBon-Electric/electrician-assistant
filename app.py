@@ -272,7 +272,7 @@ def display_chat_history():
 def main():
     # Language selector in sidebar
     st.sidebar.selectbox(
-        "Select Language / Seleccionar Idioma",
+        "🌐 Select Language / Seleccionar Idioma",  # Added globe emoji
         options=['English', 'Español'],
         key='language_choice',
         on_change=lambda: setattr(st.session_state, 'language', 'en' if st.session_state.language_choice == 'English' else 'es')
