@@ -369,56 +369,76 @@ def display_cost_estimate_form():
             st.warning(get_text('provide_description'))
 
 def display_cost_estimate(estimate_data):
-    """Display the cost estimate results"""
-    if estimate_data["status"] == "complete":
-        st.success("✅ Cost Estimate Generated")
-        
-        data = estimate_data["data"]
-        
-        # Confidence Level (if provided)
-        if "confidence_level" in data:
-            confidence_color = {
-                "high": "green",
-                "medium": "orange",
-                "low": "red"
-            }.get(data.get("confidence_level", "").lower(), "grey")
-            st.markdown(f"*Confidence Level: <span style='color:{confidence_color}'>{data['confidence_level']}</span>*", unsafe_allow_html=True)
-        
-        # Labor Costs
-        st.subheader("👷 Labor Costs")
-        if "labor_costs" in data:
-            st.write(data["labor_costs"])
-        
-        # Material Costs
-        st.subheader("🛠️ Materials")
-        if "material_costs" in data:
-            st.write(data["material_costs"])
-        
-        # Permits and Inspections
-        st.subheader("📋 Permits and Inspections")
-        if "permit_fees" in data:
-            st.write(data["permit_fees"])
-        
-        # Timeline
-        st.subheader("⏱️ Timeline")
-        if "timeline" in data:
-            st.write(data["timeline"])
-        
-        # Total Cost
-        st.subheader("💰 Total Cost")
-        if "total_estimate" in data:
-            st.metric("Estimated Total", f"${data['total_estimate']:,.2f}")
-        
-        # Additional Notes
-        if "additional_notes" in data:
-            st.subheader("📝 Additional Notes")
-            st.write(data["additional_notes"])
-            
-        # Disclaimer for generic estimates
-        if not any(k for k in estimate_data.get("data", {}).keys() if k.startswith("user_")):
-            st.info("Note: This is a general estimate based on limited information. Actual costs may vary significantly. Contact us for a more accurate quote.")
-    else:
+    """Display the cost estimate in a formatted way"""
+    if estimate_data["status"] == "error":
         st.error(estimate_data["message"])
+        return
+        
+    data = estimate_data["data"]
+    
+    # Confidence Level
+    if "confidence_level" in data:
+        st.write(f"**Confidence Level:** {data['confidence_level']}")
+    
+    # Labor Costs
+    if "labor_costs" in data:
+        st.subheader("👷 Labor Costs")
+        labor = data["labor_costs"]
+        st.write(f"**Description:** {labor['description']}")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Hours", f"{labor['total_hours']}")
+        with col2:
+            st.metric("Rate", f"${labor['rate_per_hour']}/hr")
+        with col3:
+            st.metric("Total Labor", f"${labor['total']:,.2f}")
+    
+    # Materials
+    if "material_costs" in data:
+        st.subheader("🔧 Materials")
+        materials = data["material_costs"]
+        
+        # Create a DataFrame for better display
+        if "items" in materials:
+            items_data = []
+            for item in materials["items"]:
+                items_data.append({
+                    "Item": item["item"],
+                    "Quantity": item["quantity"],
+                    "Price/Unit": f"${item['price']:,.2f}",
+                    "Total": f"${item['total']:,.2f}"
+                })
+            
+            if items_data:
+                df = pd.DataFrame(items_data)
+                st.dataframe(df, use_container_width=True)
+                st.metric("Total Materials", f"${materials['total']:,.2f}")
+    
+    # Permit Fees
+    if "permit_fees" in data:
+        st.subheader("📋 Permit Fees")
+        permit = data["permit_fees"]
+        st.write(f"**Description:** {permit['description']}")
+        st.metric("Permit Total", f"${permit['total']:,.2f}")
+    
+    # Timeline
+    if "timeline" in data:
+        st.subheader("⏱️ Timeline")
+        timeline = data["timeline"]
+        st.write(f"**Duration:** {timeline['duration']}")
+        st.write(f"**Details:** {timeline['details']}")
+    
+    # Total Cost
+    if "total_estimate" in data:
+        st.markdown("---")
+        st.subheader("💰 Total Estimate")
+        st.metric("Total", f"${data['total_estimate']:,.2f}", help="Including labor, materials, permits, and overhead")
+    
+    # Additional Notes
+    if "additional_notes" in data:
+        st.markdown("---")
+        st.subheader("📝 Additional Notes")
+        st.info(data["additional_notes"])
 
 def main():
     initialize_session_state()  # Initialize first!
