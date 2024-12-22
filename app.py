@@ -346,53 +346,103 @@ def display_cost_estimate(estimate_data):
         
     data = estimate_data["data"]
     
+    # Create a professional-looking header
+    st.markdown("""
+        <div style='text-align: center; background-color: #f0f2f6; padding: 20px; border-radius: 10px; margin-bottom: 30px'>
+            <h1 style='color: #0e1117; margin-bottom: 10px'>Cost Estimate</h1>
+            <p style='color: #0e1117; font-size: 1.2em'>BonBon Electric</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
     # Labor Costs
     if "labor_costs" in data:
-        st.subheader("👷 Labor Costs")
+        st.markdown("""
+            <div style='background-color: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0; margin-bottom: 20px'>
+                <h2 style='color: #0e1117; margin-bottom: 15px'>👷 Labor Costs</h2>
+            </div>
+        """, unsafe_allow_html=True)
+        
         labor = data["labor_costs"]
-        st.write(f"**Description:** {labor['description']}")
-        st.write(f"**Hours:** {labor['total_hours']}")
-        st.write(f"**Rate:** ${labor['rate_per_hour']}/hour")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"**Description**\n{labor['description']}")
+        with col2:
+            st.markdown(f"**Hours**\n{labor['total_hours']}")
+        with col3:
+            st.markdown(f"**Rate**\n${labor['rate_per_hour']}/hour")
+        
+        st.markdown("""<div style='margin: 10px 0'></div>""", unsafe_allow_html=True)
         st.metric("Total Labor", f"${labor['total']:,.2f}")
     
     # Materials
     if "material_costs" in data:
-        st.subheader("🔧 Materials")
+        st.markdown("""
+            <div style='background-color: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0; margin: 30px 0 20px 0'>
+                <h2 style='color: #0e1117; margin-bottom: 15px'>🔧 Materials</h2>
+            </div>
+        """, unsafe_allow_html=True)
+        
         materials = data["material_costs"]
         if "items" in materials:
             for item in materials["items"]:
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.write(f"**{item['item']}**")
-                with col2:
-                    st.write(f"Quantity: {item['quantity']}")
-                with col3:
-                    st.write(f"${item['price']}/unit")
-                st.write(f"Total: ${item['total']:,.2f}")
-                st.write("---")
-        materials_total = sum(item["total"] for item in materials["items"])
-        st.metric("Total Materials", f"${materials_total:,.2f}")
+                with st.container():
+                    st.markdown("""
+                        <div style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 10px'>
+                    """, unsafe_allow_html=True)
+                    col1, col2, col3, col4 = st.columns([2,1,1,1])
+                    with col1:
+                        st.markdown(f"**{item['item']}**")
+                    with col2:
+                        st.markdown(f"Qty: {item['quantity']}")
+                    with col3:
+                        st.markdown(f"${item['price']}/unit")
+                    with col4:
+                        st.markdown(f"**${item['total']:,.2f}**")
+                    
+            materials_total = sum(item["total"] for item in materials["items"])
+            st.markdown("""<div style='margin: 20px 0'></div>""", unsafe_allow_html=True)
+            st.metric("Total Materials", f"${materials_total:,.2f}")
     
     # Permit Fees
     if "permit_fees" in data:
-        st.subheader("📋 Los Angeles County Permits & Inspections")
+        st.markdown("""
+            <div style='background-color: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0; margin: 30px 0 20px 0'>
+                <h2 style='color: #0e1117; margin-bottom: 15px'>📋 Los Angeles County Permits & Inspections</h2>
+            </div>
+        """, unsafe_allow_html=True)
+        
         permit = data["permit_fees"]
-        if "permits_required" in permit:
-            st.write("**Required Permits:**")
-            for p in permit["permits_required"]:
-                st.write(f"- {p}")
-        if "inspections_required" in permit:
-            st.write("**Required Inspections:**")
-            for i in permit["inspections_required"]:
-                st.write(f"- {i}")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if "permits_required" in permit:
+                st.markdown("**Required Permits**")
+                for p in permit["permits_required"]:
+                    st.markdown(f"- {p}")
+        
+        with col2:
+            if "inspections_required" in permit:
+                st.markdown("**Required Inspections**")
+                for i in permit["inspections_required"]:
+                    st.markdown(f"- {i}")
+        
+        st.markdown("""<div style='margin: 20px 0'></div>""", unsafe_allow_html=True)
         st.metric("Total Permit Fees", f"${permit['total']:,.2f}")
     
     # Timeline
     if "timeline" in data:
-        st.subheader("⏱️ Timeline")
+        st.markdown("""
+            <div style='background-color: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0; margin: 30px 0 20px 0'>
+                <h2 style='color: #0e1117; margin-bottom: 15px'>⏱️ Timeline</h2>
+            </div>
+        """, unsafe_allow_html=True)
+        
         timeline = data["timeline"]
-        st.write(f"**Duration:** {timeline['duration']}")
-        st.write(f"**Details:** {timeline['details']}")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"**Duration**\n{timeline['duration']}")
+        with col2:
+            st.markdown(f"**Details**\n{timeline['details']}")
     
     # Calculate total
     total_estimate = (
@@ -402,113 +452,150 @@ def display_cost_estimate(estimate_data):
     )
     
     # Total Cost
-    st.markdown("---")
-    st.subheader("💰 Total Estimate")
-    st.metric("Total", f"${total_estimate:,.2f}", help="Including labor, materials, permits, and overhead")
+    st.markdown("""
+        <div style='background-color: #f0f2f6; padding: 30px; border-radius: 10px; margin: 30px 0; text-align: center'>
+            <h2 style='color: #0e1117; margin-bottom: 15px'>💰 Total Estimate</h2>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        st.metric("Total", f"${total_estimate:,.2f}", help="Including labor, materials, permits, and overhead")
     
     # Additional Notes
     if "additional_notes" in data:
-        st.markdown("---")
-        st.subheader("📝 Additional Notes")
+        st.markdown("""
+            <div style='background-color: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0; margin: 30px 0 20px 0'>
+                <h2 style='color: #0e1117; margin-bottom: 15px'>📝 Additional Notes</h2>
+            </div>
+        """, unsafe_allow_html=True)
+        
         st.info(data["additional_notes"])
 
-    # Add PDF Export Button
-    if st.button("📥 Export as PDF"):
-        try:
-            import tempfile
-            import os
-            from fpdf import FPDF
-            
-            # Create PDF
-            pdf = FPDF()
-            pdf.add_page()
-            
-            # Title
-            pdf.set_font("Arial", "B", 16)
-            pdf.cell(0, 10, "Cost Estimate", ln=True, align="C")
-            pdf.ln(10)
-            
-            # Labor Costs
-            if "labor_costs" in data:
-                pdf.set_font("Arial", "B", 14)
-                pdf.cell(0, 10, "Labor Costs", ln=True)
-                pdf.set_font("Arial", "", 12)
-                labor = data["labor_costs"]
-                pdf.cell(0, 10, f"Description: {labor['description']}", ln=True)
-                pdf.cell(0, 10, f"Hours: {labor['total_hours']} @ ${labor['rate_per_hour']}/hr = ${labor['total']:.2f}", ln=True)
-                pdf.ln(5)
-            
-            # Materials
-            if "material_costs" in data:
-                pdf.set_font("Arial", "B", 14)
-                pdf.cell(0, 10, "Materials", ln=True)
-                pdf.set_font("Arial", "", 12)
-                materials = data["material_costs"]
-                if "items" in materials:
-                    for item in materials["items"]:
-                        pdf.cell(0, 10, f"{item['item']} - Qty: {item['quantity']} @ ${item['price']}/unit = ${item['total']:.2f}", ln=True)
-                    materials_total = sum(item["total"] for item in materials["items"])
-                    pdf.cell(0, 10, f"Materials Total: ${materials_total:.2f}", ln=True)
-                pdf.ln(5)
-            
-            # Permits
-            if "permit_fees" in data:
-                pdf.set_font("Arial", "B", 14)
-                pdf.cell(0, 10, "Permits and Inspections", ln=True)
-                pdf.set_font("Arial", "", 12)
-                permit = data["permit_fees"]
-                if "permits_required" in permit:
-                    pdf.cell(0, 10, "Required Permits:", ln=True)
-                    for p in permit["permits_required"]:
-                        pdf.cell(0, 10, f"- {p}", ln=True)
-                if "inspections_required" in permit:
-                    pdf.cell(0, 10, "Required Inspections:", ln=True)
-                    for i in permit["inspections_required"]:
-                        pdf.cell(0, 10, f"- {i}", ln=True)
-                pdf.cell(0, 10, f"Permit Fees Total: ${permit['total']:.2f}", ln=True)
-                pdf.ln(5)
-            
-            # Timeline
-            if "timeline" in data:
-                pdf.set_font("Arial", "B", 14)
-                pdf.cell(0, 10, "Timeline", ln=True)
-                pdf.set_font("Arial", "", 12)
-                timeline = data["timeline"]
-                pdf.cell(0, 10, f"Duration: {timeline['duration']}", ln=True)
-                pdf.multi_cell(0, 10, f"Details: {timeline['details']}")
-                pdf.ln(5)
-            
-            # Total
-            pdf.set_font("Arial", "B", 16)
-            pdf.cell(0, 10, f"Total Estimate: ${total_estimate:.2f}", ln=True)
-            
-            # Additional Notes
-            if "additional_notes" in data:
-                pdf.ln(5)
-                pdf.set_font("Arial", "B", 14)
-                pdf.cell(0, 10, "Additional Notes", ln=True)
-                pdf.set_font("Arial", "", 12)
-                pdf.multi_cell(0, 10, data["additional_notes"])
-            
-            # Save PDF to temp file
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-                pdf.output(tmp_file.name)
+    # Export button
+    st.markdown("""<div style='margin: 30px 0'></div>""", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        if st.button("📥 Export as PDF", use_container_width=True):
+            try:
+                import tempfile
+                import os
+                from fpdf import FPDF
                 
-            # Read PDF file and create download button
-            with open(tmp_file.name, "rb") as file:
-                pdf_data = file.read()
-                st.download_button(
-                    label="Download PDF",
-                    data=pdf_data,
-                    file_name="cost_estimate.pdf",
-                    mime="application/pdf"
-                )
+                # Create PDF with improved formatting
+                pdf = FPDF()
+                pdf.add_page()
                 
-            # Clean up temp file
-            os.unlink(tmp_file.name)
-            
-        except Exception as e:
-            st.error(f"Error generating PDF: {str(e)}")
+                # Title with styling
+                pdf.set_font("Arial", "B", 24)
+                pdf.cell(0, 20, "Cost Estimate", ln=True, align="C")
+                pdf.set_font("Arial", "B", 16)
+                pdf.cell(0, 10, "BonBon Electric", ln=True, align="C")
+                pdf.line(20, pdf.get_y() + 5, 190, pdf.get_y() + 5)
+                pdf.ln(15)
+                
+                # Labor Costs
+                if "labor_costs" in data:
+                    pdf.set_font("Arial", "B", 16)
+                    pdf.cell(0, 10, "Labor Costs", ln=True)
+                    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+                    pdf.ln(5)
+                    pdf.set_font("Arial", "", 12)
+                    labor = data["labor_costs"]
+                    pdf.cell(0, 10, f"Description: {labor['description']}", ln=True)
+                    pdf.cell(0, 10, f"Hours: {labor['total_hours']} @ ${labor['rate_per_hour']}/hr = ${labor['total']:,.2f}", ln=True)
+                    pdf.ln(10)
+                
+                # Materials
+                if "material_costs" in data:
+                    pdf.set_font("Arial", "B", 16)
+                    pdf.cell(0, 10, "Materials", ln=True)
+                    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+                    pdf.ln(5)
+                    pdf.set_font("Arial", "", 12)
+                    materials = data["material_costs"]
+                    if "items" in materials:
+                        for item in materials["items"]:
+                            pdf.cell(0, 10, f"{item['item']} - Qty: {item['quantity']} @ ${item['price']}/unit = ${item['total']:,.2f}", ln=True)
+                        materials_total = sum(item["total"] for item in materials["items"])
+                        pdf.ln(5)
+                        pdf.set_font("Arial", "B", 12)
+                        pdf.cell(0, 10, f"Materials Total: ${materials_total:,.2f}", ln=True)
+                        pdf.ln(10)
+                
+                # Permits
+                if "permit_fees" in data:
+                    pdf.set_font("Arial", "B", 16)
+                    pdf.cell(0, 10, "Permits and Inspections", ln=True)
+                    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+                    pdf.ln(5)
+                    pdf.set_font("Arial", "", 12)
+                    permit = data["permit_fees"]
+                    if "permits_required" in permit:
+                        pdf.cell(0, 10, "Required Permits:", ln=True)
+                        for p in permit["permits_required"]:
+                            pdf.cell(0, 10, f"- {p}", ln=True)
+                    if "inspections_required" in permit:
+                        pdf.ln(5)
+                        pdf.cell(0, 10, "Required Inspections:", ln=True)
+                        for i in permit["inspections_required"]:
+                            pdf.cell(0, 10, f"- {i}", ln=True)
+                    pdf.ln(5)
+                    pdf.set_font("Arial", "B", 12)
+                    pdf.cell(0, 10, f"Permit Fees Total: ${permit['total']:,.2f}", ln=True)
+                    pdf.ln(10)
+                
+                # Timeline
+                if "timeline" in data:
+                    pdf.set_font("Arial", "B", 16)
+                    pdf.cell(0, 10, "Timeline", ln=True)
+                    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+                    pdf.ln(5)
+                    pdf.set_font("Arial", "", 12)
+                    timeline = data["timeline"]
+                    pdf.cell(0, 10, f"Duration: {timeline['duration']}", ln=True)
+                    pdf.multi_cell(0, 10, f"Details: {timeline['details']}")
+                    pdf.ln(10)
+                
+                # Total with styling
+                pdf.set_font("Arial", "B", 16)
+                pdf.cell(0, 2, "", ln=True)
+                pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+                pdf.ln(10)
+                pdf.set_font("Arial", "B", 20)
+                pdf.cell(0, 10, f"Total Estimate: ${total_estimate:,.2f}", ln=True, align="C")
+                pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+                
+                # Additional Notes
+                if "additional_notes" in data:
+                    pdf.ln(15)
+                    pdf.set_font("Arial", "B", 16)
+                    pdf.cell(0, 10, "Additional Notes", ln=True)
+                    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+                    pdf.ln(5)
+                    pdf.set_font("Arial", "", 12)
+                    pdf.multi_cell(0, 10, data["additional_notes"])
+                
+                # Save PDF to temp file
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                    pdf.output(tmp_file.name)
+                    
+                # Read PDF file and create download button
+                with open(tmp_file.name, "rb") as file:
+                    pdf_data = file.read()
+                    st.download_button(
+                        label="Download PDF",
+                        data=pdf_data,
+                        file_name="cost_estimate.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                    
+                # Clean up temp file
+                os.unlink(tmp_file.name)
+                
+            except Exception as e:
+                st.error(f"Error generating PDF: {str(e)}")
 
 def display_cost_estimate_form():
     """Display the cost estimate form with optional fields"""
