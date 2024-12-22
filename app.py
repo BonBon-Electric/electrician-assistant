@@ -41,7 +41,7 @@ def initialize_session_state():
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "current_tab" not in st.session_state:
-        st.session_state.current_tab = "Expert Chat"
+        st.session_state.current_tab = "NEC Electrical Assistant"
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
     if 'conversation_context' not in st.session_state:
@@ -270,12 +270,12 @@ def main():
     st.sidebar.title("Navigation")
     st.session_state.current_tab = st.sidebar.radio(
         "Choose a feature:",
-        ["Expert Chat", "Cost Estimator"]
+        ["NEC Electrical Assistant", "Cost Estimator"]
     )
     
     # Main content
-    if st.session_state.current_tab == "Expert Chat":
-        st.write("## 💬 Expert Electrician Chat")
+    if st.session_state.current_tab == "NEC Electrical Assistant":
+        st.write("## 💬 NEC Electrical Assistant")
         
         display_chat_history()
         
