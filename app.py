@@ -580,90 +580,15 @@ def display_cost_estimate_form():
         placeholder=get_text('job_description_placeholder')
     )
     
-    # Optional details section
-    with st.expander("📝 Additional Details (Optional)", expanded=False):
-        st.info("These details will help provide a more accurate estimate, but all fields are optional.")
+    # Submit button
+    if st.button(get_text('generate_estimate')):
+        if not job_description:
+            st.error(get_text('error_no_description'))
+            return
         
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Location details
-            st.subheader("📍 Location")
-            location_type = st.selectbox(
-                "Property Type",
-                options=["", "Residential", "Commercial", "Industrial"],
-                index=0
-            )
-            square_footage = st.number_input(
-                "Square Footage",
-                min_value=0,
-                help="Enter the approximate square footage of the property"
-            )
-            city = st.text_input("City")
-            state = st.selectbox(
-                "State",
-                options=["", "CA", "Other"],
-                index=0
-            )
-            
-            # Electrical specifications
-            st.subheader("⚡ Electrical Specs")
-            voltage = st.selectbox(
-                "Voltage Requirements",
-                options=["", "120V", "240V", "208V", "480V"],
-                index=0
-            )
-            amperage = st.selectbox(
-                "Amperage",
-                options=["", "15A", "20A", "30A", "50A", "100A", "200A", "400A"],
-                index=0
-            )
-            
-        with col2:
-            # Project scope
-            st.subheader("🔨 Project Scope")
-            timeline_urgency = st.select_slider(
-                "Timeline Urgency",
-                options=["", "Flexible", "Normal", "Urgent"],
-                value=""
-            )
-            accessibility = st.select_slider(
-                "Job Site Accessibility",
-                options=["", "Easy", "Moderate", "Difficult"],
-                value=""
-            )
-            
-            # Material preferences
-            st.subheader("🛠️ Materials")
-            quality_grade = st.select_slider(
-                "Material Quality Grade",
-                options=["", "Standard", "Premium", "Luxury"],
-                value=""
-            )
-    
-    # Collect all the additional information
-    additional_info = {
-        "Property Type": location_type,
-        "Square Footage": square_footage if square_footage > 0 else "",
-        "City": city,
-        "State": state,
-        "Voltage": voltage,
-        "Amperage": amperage,
-        "Timeline": timeline_urgency,
-        "Accessibility": accessibility,
-        "Material Grade": quality_grade
-    }
-    
-    # Remove empty values
-    additional_info = {k: v for k, v in additional_info.items() if v}
-    
-    if st.button(get_text('generate_estimate'), type="primary"):
-        if job_description:
-            with st.spinner(get_text('generating_estimate')):
-                estimate = create_cost_estimate(job_description, additional_info)
-                display_cost_estimate(estimate)
-        else:
-            st.warning(get_text('provide_description'))
+        with st.spinner(get_text('generating_estimate')):
+            estimate = create_cost_estimate(job_description)
+            display_cost_estimate(estimate)
 
 def main():
     initialize_session_state()  # Initialize first!
