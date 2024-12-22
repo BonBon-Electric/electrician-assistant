@@ -252,6 +252,79 @@ def display_chat_history():
 
 def create_cost_estimate(description: str, additional_info: dict = None):
     """Generate a cost estimate based on the job description and optional additional info"""
+    # Define standardized cost templates for common jobs
+    STANDARD_ESTIMATES = {
+        "solar": {
+            "keywords": ["solar", "solar panel", "solar installation", "pv", "photovoltaic"],
+            "template": {
+                "labor_costs": {
+                    "description": "Solar PV system installation including mounting, wiring, and inverter setup",
+                    "total_hours": 32,
+                    "rate_per_hour": 125,
+                    "total": 4000
+                },
+                "material_costs": {
+                    "items": [
+                        {
+                            "item": "Solar Panels (400W each)",
+                            "quantity": 12,
+                            "price": 400,
+                            "total": 4800
+                        },
+                        {
+                            "item": "Inverter System",
+                            "quantity": 1,
+                            "price": 2000,
+                            "total": 2000
+                        },
+                        {
+                            "item": "Mounting Hardware",
+                            "quantity": 1,
+                            "price": 800,
+                            "total": 800
+                        },
+                        {
+                            "item": "Wiring and Electrical Components",
+                            "quantity": 1,
+                            "price": 600,
+                            "total": 600
+                        }
+                    ]
+                },
+                "permit_fees": {
+                    "permits_required": [
+                        "Building Permit - Solar PV Installation",
+                        "Electrical Permit - Solar System",
+                        "LA County Fire Department Review"
+                    ],
+                    "inspections_required": [
+                        "Pre-Installation Roof Inspection",
+                        "Electrical System Inspection",
+                        "Final Building Inspection"
+                    ],
+                    "total": 850
+                },
+                "timeline": {
+                    "duration": "5-7 business days",
+                    "details": "Day 1-2: Site preparation and mounting installation\nDay 3-4: Panel installation and wiring\nDay 5: Inverter installation and system testing\nDay 6-7: Final inspection and utility connection"
+                },
+                "additional_notes": "Price includes standard roof mounting. Additional costs may apply for ground mounting or complex roof configurations. System size is based on average household consumption (6kW system). Price includes federal tax credit eligibility documentation."
+            }
+        }
+    }
+    
+    # Check if this is a standard job type
+    description_lower = description.lower()
+    for job_type, data in STANDARD_ESTIMATES.items():
+        if any(keyword in description_lower for keyword in data["keywords"]):
+            template = data["template"]
+            # Calculate totals
+            materials_total = sum(item["total"] for item in template["material_costs"]["items"])
+            template["material_costs"]["total"] = materials_total
+            template["total_estimate"] = template["labor_costs"]["total"] + materials_total + template["permit_fees"]["total"]
+            return {"status": "complete", "data": template}
+    
+    # If not a standard job, use AI estimation
     if additional_info is None:
         additional_info = {}
     
@@ -346,11 +419,10 @@ def display_cost_estimate(estimate_data):
         
     data = estimate_data["data"]
     
-    # Create a professional-looking header
+    # Create a clean header
     st.markdown("""
         <div style='text-align: center; background-color: #f0f2f6; padding: 20px; border-radius: 10px; margin-bottom: 30px'>
-            <h1 style='color: #0e1117; margin-bottom: 10px'>Cost Estimate</h1>
-            <p style='color: #0e1117; font-size: 1.2em'>BonBon Electric</p>
+            <h2 style='color: #0e1117; margin: 0'>Cost Estimate</h2>
         </div>
     """, unsafe_allow_html=True)
     
@@ -358,7 +430,7 @@ def display_cost_estimate(estimate_data):
     if "labor_costs" in data:
         st.markdown("""
             <div style='background-color: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0; margin-bottom: 20px'>
-                <h2 style='color: #0e1117; margin-bottom: 15px'>👷 Labor Costs</h2>
+                <h3 style='color: #0e1117; margin: 0'>👷 Labor</h3>
             </div>
         """, unsafe_allow_html=True)
         
@@ -371,14 +443,13 @@ def display_cost_estimate(estimate_data):
         with col3:
             st.markdown(f"**Rate**\n${labor['rate_per_hour']}/hour")
         
-        st.markdown("""<div style='margin: 10px 0'></div>""", unsafe_allow_html=True)
         st.metric("Total Labor", f"${labor['total']:,.2f}")
     
     # Materials
     if "material_costs" in data:
         st.markdown("""
             <div style='background-color: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0; margin: 30px 0 20px 0'>
-                <h2 style='color: #0e1117; margin-bottom: 15px'>🔧 Materials</h2>
+                <h3 style='color: #0e1117; margin: 0'>🔧 Materials</h3>
             </div>
         """, unsafe_allow_html=True)
         
@@ -400,14 +471,13 @@ def display_cost_estimate(estimate_data):
                         st.markdown(f"**${item['total']:,.2f}**")
                     
             materials_total = sum(item["total"] for item in materials["items"])
-            st.markdown("""<div style='margin: 20px 0'></div>""", unsafe_allow_html=True)
             st.metric("Total Materials", f"${materials_total:,.2f}")
     
     # Permit Fees
     if "permit_fees" in data:
         st.markdown("""
             <div style='background-color: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0; margin: 30px 0 20px 0'>
-                <h2 style='color: #0e1117; margin-bottom: 15px'>📋 Los Angeles County Permits & Inspections</h2>
+                <h3 style='color: #0e1117; margin: 0'>📋 Permits & Inspections</h3>
             </div>
         """, unsafe_allow_html=True)
         
@@ -426,14 +496,13 @@ def display_cost_estimate(estimate_data):
                 for i in permit["inspections_required"]:
                     st.markdown(f"- {i}")
         
-        st.markdown("""<div style='margin: 20px 0'></div>""", unsafe_allow_html=True)
         st.metric("Total Permit Fees", f"${permit['total']:,.2f}")
     
     # Timeline
     if "timeline" in data:
         st.markdown("""
             <div style='background-color: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0; margin: 30px 0 20px 0'>
-                <h2 style='color: #0e1117; margin-bottom: 15px'>⏱️ Timeline</h2>
+                <h3 style='color: #0e1117; margin: 0'>⏱️ Timeline</h3>
             </div>
         """, unsafe_allow_html=True)
         
@@ -453,8 +522,8 @@ def display_cost_estimate(estimate_data):
     
     # Total Cost
     st.markdown("""
-        <div style='background-color: #f0f2f6; padding: 30px; border-radius: 10px; margin: 30px 0; text-align: center'>
-            <h2 style='color: #0e1117; margin-bottom: 15px'>💰 Total Estimate</h2>
+        <div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px; margin: 30px 0; text-align: center'>
+            <h3 style='color: #0e1117; margin: 0'>💰 Total Estimate</h3>
         </div>
     """, unsafe_allow_html=True)
     
@@ -466,7 +535,7 @@ def display_cost_estimate(estimate_data):
     if "additional_notes" in data:
         st.markdown("""
             <div style='background-color: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0; margin: 30px 0 20px 0'>
-                <h2 style='color: #0e1117; margin-bottom: 15px'>📝 Additional Notes</h2>
+                <h3 style='color: #0e1117; margin: 0'>📝 Additional Notes</h3>
             </div>
         """, unsafe_allow_html=True)
         
@@ -486,11 +555,9 @@ def display_cost_estimate(estimate_data):
                 pdf = FPDF()
                 pdf.add_page()
                 
-                # Title with styling
-                pdf.set_font("Arial", "B", 24)
+                # Title
+                pdf.set_font("Arial", "B", 20)
                 pdf.cell(0, 20, "Cost Estimate", ln=True, align="C")
-                pdf.set_font("Arial", "B", 16)
-                pdf.cell(0, 10, "BonBon Electric", ln=True, align="C")
                 pdf.line(20, pdf.get_y() + 5, 190, pdf.get_y() + 5)
                 pdf.ln(15)
                 
