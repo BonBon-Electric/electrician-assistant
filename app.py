@@ -117,115 +117,37 @@ def get_nec_code_info(query: str) -> dict:
     
     # Define NEC code sections with detailed explanations
     nec_codes = {
+        "110.26": {
+            "title": "Spaces About Electrical Equipment",
+            "description": "NEC Code 110.26 establishes mandatory workspace requirements for electrical equipment. For installations operating at 0-150V, a minimum working space depth of 30 inches is required, measured from the exposed live parts or enclosure front. The workspace width must be the greater of 30 inches or the width of the equipment. A minimum headroom clearance of 6.5 feet must be maintained. The workspace must remain clear and unobstructed at all times, with adequate illumination provided. For equipment rated 1200A or more, at least one entrance of sufficient area is required for personnel to escape quickly in an emergency. No storage is permitted within the designated electrical working space. These requirements ensure safe access for installation, operation, and maintenance of electrical equipment."
+        },
+        "210.7": {
+            "title": "Branch Circuits - General Requirements",
+            "description": "NEC Code 210.7 governs overcurrent protection requirements for branch circuits. All ungrounded conductors must be protected by an overcurrent device at the point where the conductor receives its supply. The overcurrent protection rating must not exceed the conductor's ampacity after adjustment for ambient temperature and number of conductors. The device must coordinate with downstream protective devices to maintain selective coordination. All overcurrent devices must be readily accessible and properly sized to handle continuous loads at 125% of the continuous load current. Temperature correction factors must be applied when ambient temperatures differ from 30°C (86°F). This code ensures proper circuit protection and helps prevent electrical fires and equipment damage."
+        },
         "210.12": {
             "title": "Arc-Fault Circuit-Interrupter Protection",
-            "description": """Key requirements for AFCI protection:
-            • Required for all 120V circuits in residential dwellings
-            • Must protect bedrooms, living rooms, kitchens, family rooms
-            • Protection required for branch circuits and feeders
-            • AFCI devices must be readily accessible
-            • Must be listed and marked as AFCI protection devices
-            • Required for replacement receptacles in these areas
-            • Must meet UL 1699 testing standards"""
+            "description": "NEC Code 210.12 mandates AFCI protection requirements for dwelling units. All 120-volt, single-phase, 15- and 20-ampere branch circuits supplying outlets or devices in dwelling unit kitchens, family rooms, dining rooms, living rooms, parlors, libraries, dens, bedrooms, sunrooms, recreation rooms, closets, hallways, laundry areas, and similar rooms or areas must have AFCI protection. The protection must be provided by either a branch-circuit type AFCI, a combination-type AFCI, or a listed outlet branch-circuit type AFCI. The AFCI device must be readily accessible and meet UL 1699 testing standards. When replacing receptacles in areas requiring AFCI protection, the replacement must provide or maintain AFCI protection. This code is crucial for preventing electrical fires caused by arcing faults."
         },
         "210.24": {
             "title": "Branch Circuit Requirements",
-            "description": """Key requirements for branch circuits:
-            • Circuit rating must match standard ampere rating
-            • Conductor size must match overcurrent protection
-            • Maximum load must not exceed circuit rating
-            • Multi-wire circuits require common disconnect
-            • Must maintain proper wire gauge for length
-            • Voltage drop limited to 3% for branch circuits
-            • Must provide separate neutral for AFCI circuits"""
+            "description": "NEC Code 210.24 specifies comprehensive requirements for branch circuits. The circuit rating must align with standard ampere ratings (15, 20, 30, 40, and 50 amperes), and conductor sizes must be properly matched to their overcurrent protection. The maximum load must not exceed 80% of the circuit rating for continuous loads. Multi-wire branch circuits require simultaneous disconnection of all ungrounded conductors. Wire gauge selection must account for voltage drop, limited to 3% for branch circuits and 5% for the total voltage drop including feeder and branch circuit. Each AFCI-protected circuit requires a dedicated neutral conductor. This code ensures safe and efficient branch circuit installations while preventing overloading and excessive voltage drop."
         },
         "240.4": {
             "title": "Protection of Conductors",
-            "description": """Key requirements for conductor protection:
-            • Conductors must be protected at their ampacity
-            • Small conductors require specific protection
-            • Tap conductors have special sizing rules
-            • Must account for temperature correction factors
-            • Requires coordination with terminal temperature ratings
-            • Must protect all ungrounded conductors
-            • Cannot exceed maximum overcurrent protection size"""
+            "description": "NEC Code 240.4 establishes requirements for conductor protection against overcurrent. Conductors must be protected at their ampacity rating after applying all adjustment factors. Small conductors (#14 through #10) have specific ampacity limitations regardless of the ampacity tables. Tap conductors have special rules for sizing and length based on the specific application. Temperature correction factors must be applied when ambient temperatures exceed 30°C (86°F). The code requires consideration of terminal temperature ratings, which may limit the maximum current. All ungrounded conductors must have overcurrent protection, with limited exceptions for control circuits and specific applications. This code is fundamental for preventing conductor overheating and maintaining system safety."
         },
         "250.122": {
-            "title": "Equipment Grounding Conductor Sizing",
-            "description": """Key requirements for EGC sizing:
-            • Must be sized based on overcurrent device rating
-            • Minimum size specified in Table 250.122
-            • Must be increased for voltage drop compensation
-            • Parallel conductors require proper sizing
-            • Must maintain proper termination methods
-            • Cannot be smaller than specified minimums
-            • Must account for conduit fill requirements"""
+            "title": "Size of Equipment Grounding Conductors",
+            "description": "NEC Code 250.122 details the requirements for sizing equipment grounding conductors (EGC). The minimum size must be determined based on the rating of the overcurrent device protecting the circuit conductors, as specified in Table 250.122. When conductors are increased in size for voltage drop compensation, the EGC size must be increased proportionally. For parallel conductors, each parallel run must have an EGC sized based on the circuit overcurrent device. Proper termination methods must be maintained using listed lugs and connectors. The EGC cannot be smaller than the specified minimums in any case, and installation must account for conduit fill calculations. This code ensures proper ground fault current paths and equipment safety."
         },
         "300.5": {
-            "title": "Underground Installation Requirements",
-            "description": """Key requirements for underground installations:
-            • Minimum burial depths specified by circuit type
-            • Must protect cables from physical damage
-            • Requires proper warning tape placement
-            • Must maintain separation from other utilities
-            • Requires proper raceway selection for soil
-            • Must account for frost line depth
-            • Requires proper drainage considerations"""
+            "title": "Underground Installations",
+            "description": "NEC Code 300.5 provides comprehensive requirements for underground electrical installations. Minimum burial depths vary by circuit type and location: 24 inches for general circuits, 18 inches for residential branch circuits with GFCI protection, and 6 inches for low-voltage lighting. Direct-buried cables and conduits must be protected from physical damage using approved methods. Warning tape must be installed 12 inches above electrical conductors. Proper separation must be maintained from other utilities: 12 inches from telecommunications, 12 inches from gas/water, and 3 feet from fuel tanks. Raceway selection must be suitable for soil conditions and chemical exposure. Installation depth must account for the local frost line, and proper drainage must be provided to prevent water accumulation. This code ensures safe and reliable underground electrical installations."
         },
-        "310.15": {
-            "title": "Ampacities for Conductors",
-            "description": """Key requirements for conductor ampacity:
-            • Must use proper temperature correction factors
-            • Must account for ambient temperature
-            • Requires adjustment for conductor bundling
-            • Must consider raceway fill restrictions
-            • Solar heating must be considered
-            • Continuous loads require 125% sizing
-            • Must use proper terminal temperature ratings"""
-        },
-        "314.16": {
-            "title": "Box Fill Calculations",
-            "description": """Key requirements for box fill:
-            • Must count all conductors entering box
-            • Device yokes count as double volume
-            • Must include space for wire connectors
-            • Support fittings require volume allowance
-            • Equipment grounding conductors count as one
-            • Must maintain proper wire bending space
-            • Cannot exceed maximum fill percentage"""
-        },
-        "404.2": {
-            "title": "Switch Locations",
-            "description": """Key requirements for switch installation:
-            • Must be readily accessible
-            • Height restrictions for accessibility
-            • Requires proper workspace clearances
-            • Must be grounded if in metallic box
-            • Wet locations require special enclosures
-            • Must identify switched neutral when used
-            • Requires proper wire bending space"""
-        },
-        "406.4": {
-            "title": "Receptacle Requirements",
-            "description": """Key requirements for receptacles:
-            • Must be listed for the location
-            • Proper orientation must be maintained
-            • GFCI protection where required
-            • Tamper-resistant in specified locations
-            • Weather-resistant in wet locations
-            • Must be properly secured to box
-            • Requires proper grounding methods"""
-        },
-        "408.36": {
-            "title": "Panelboard Overcurrent Protection",
-            "description": """Key requirements for panelboard protection:
-            • Main breaker required unless specific exceptions met
-            • Must not exceed panelboard rating
-            • Back-fed breakers require securing means
-            • Must maintain proper wire bending space
-            • Series-rated systems must be labeled
-            • Must maintain proper working clearances
-            • Requires proper grounding methods"""
+        "300.13": {
+            "title": "General Installation Requirements",
+            "description": "NEC Code 300.13 establishes fundamental requirements for electrical installations. Mechanical and electrical continuity of all conductors must be maintained throughout the system. No splices or terminations are permitted except within approved enclosures with proper covers. Device removal must not interrupt continuity of grounded conductors in multi-wire branch circuits. All connections must be made with approved methods and materials, properly secured and protected from physical damage. Raceways and cable assemblies must be mechanically continuous between boxes, fittings, and enclosures. This code ensures reliable electrical connections and system integrity."
         }
     }
     
@@ -268,16 +190,14 @@ def get_nec_code_info(query: str) -> dict:
 def format_nec_response(response: str) -> str:
     """Format the NEC assistant response with detailed code explanations."""
     # Regular expression to find NEC code references in various formats
-    nec_pattern = r'NEC (\d+\.\d+)(?:\s*\([A-Za-z]\))?'
+    nec_pattern = r'NEC (\d+\.\d+)'
     
     def format_nec_code(match):
         code = match.group(1)
-        # Replace with detailed summaries based on the NEC code
         nec_info = get_nec_code_info(code)
         if nec_info["found"]:
-            return nec_info["response"]
-        else:
-            return f"📖 NEC {code} - Refer to official NEC documentation for detailed requirements"
+            return f"**NEC {code} {nec_info['codes'][code]['title']}**\n{nec_info['codes'][code]['description']}"
+        return f"📖 NEC {code} - Refer to official NEC documentation for detailed requirements"
     
     # Replace NEC references with detailed summaries
     formatted_response = re.sub(nec_pattern, format_nec_code, response)
