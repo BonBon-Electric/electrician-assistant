@@ -346,91 +346,31 @@ def display_cost_estimate(estimate_data):
         
     data = estimate_data["data"]
     
-    # Initialize session state for editable fields if not exists
-    if 'materials' not in st.session_state:
-        st.session_state.materials = []
-        if "material_costs" in data and "items" in data["material_costs"]:
-            for item in data["material_costs"]["items"]:
-                st.session_state.materials.append({
-                    "name": item["item"],
-                    "quantity": item["quantity"],
-                    "price": item["price"],
-                    "total": item["total"]
-                })
-    
-    if 'labor' not in st.session_state:
-        st.session_state.labor = []
-        if "labor_costs" in data:
-            labor = data["labor_costs"]
-            st.session_state.labor.append({
-                "description": labor["description"],
-                "hours": labor["total_hours"],
-                "rate": labor["rate_per_hour"],
-                "total": labor["total"]
-            })
-    
-    if 'permits' not in st.session_state:
-        st.session_state.permits = []
-        if "permit_fees" in data:
-            permit = data["permit_fees"]
-            if "total" in permit:
-                st.session_state.permits.append({
-                    "name": "Permit and Inspection Fees",
-                    "cost": permit["total"]
-                })
-    
     # Labor Costs
     if "labor_costs" in data:
         st.subheader("👷 Labor Costs")
-        
-        # Make labor editable
-        labor_item = st.session_state.labor[0] if st.session_state.labor else {"description": "", "hours": 0, "rate": 0}
-        
-        description = st.text_input("Description", labor_item["description"], key="labor_desc")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            hours = st.number_input("Hours", min_value=0.0, value=float(labor_item["hours"]), key="labor_hours")
-        with col2:
-            rate = st.number_input("Rate ($/hr)", min_value=0.0, value=float(labor_item["rate"]), key="labor_rate")
-        with col3:
-            labor_total = hours * rate
-            st.metric("Total Labor", f"${labor_total:,.2f}")
-        
-        # Update session state
-        st.session_state.labor = [{
-            "description": description,
-            "hours": hours,
-            "rate": rate,
-            "total": labor_total
-        }]
+        labor = data["labor_costs"]
+        st.write(f"**Description:** {labor['description']}")
+        st.write(f"**Hours:** {labor['total_hours']}")
+        st.write(f"**Rate:** ${labor['rate_per_hour']}/hour")
+        st.metric("Total Labor", f"${labor['total']:,.2f}")
     
     # Materials
     if "material_costs" in data:
         st.subheader("🔧 Materials")
-        
-        # Make materials editable
-        updated_materials = []
-        for i, material in enumerate(st.session_state.materials):
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                name = st.text_input(f"Item {i+1}", material["name"], key=f"mat_name_{i}")
-            with col2:
-                qty = st.number_input(f"Quantity {i+1}", min_value=0, value=material["quantity"], key=f"mat_qty_{i}")
-            with col3:
-                price = st.number_input(f"Price/Unit ${i+1}", min_value=0.0, value=float(material["price"]), key=f"mat_price_{i}")
-            with col4:
-                total = qty * price
-                st.metric(f"Total ${i+1}", f"${total:,.2f}")
-            
-            updated_materials.append({
-                "name": name,
-                "quantity": qty,
-                "price": price,
-                "total": total
-            })
-        
-        st.session_state.materials = updated_materials
-        materials_total = sum(item["total"] for item in updated_materials)
+        materials = data["material_costs"]
+        if "items" in materials:
+            for item in materials["items"]:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.write(f"**{item['item']}**")
+                with col2:
+                    st.write(f"Quantity: {item['quantity']}")
+                with col3:
+                    st.write(f"${item['price']}/unit")
+                st.write(f"Total: ${item['total']:,.2f}")
+                st.write("---")
+        materials_total = sum(item["total"] for item in materials["items"])
         st.metric("Total Materials", f"${materials_total:,.2f}")
     
     # Permit Fees
@@ -445,12 +385,7 @@ def display_cost_estimate(estimate_data):
             st.write("**Required Inspections:**")
             for i in permit["inspections_required"]:
                 st.write(f"- {i}")
-        
-        # Make permit fees editable
-        permit_item = st.session_state.permits[0] if st.session_state.permits else {"name": "Permit and Inspection Fees", "cost": 0}
-        permit_cost = st.number_input("Permit Fees Total", min_value=0.0, value=float(permit_item["cost"]), key="permit_cost")
-        st.session_state.permits = [{"name": "Permit and Inspection Fees", "cost": permit_cost}]
-        st.metric("Total Permit Fees", f"${permit_cost:,.2f}")
+        st.metric("Total Permit Fees", f"${permit['total']:,.2f}")
     
     # Timeline
     if "timeline" in data:
@@ -460,10 +395,11 @@ def display_cost_estimate(estimate_data):
         st.write(f"**Details:** {timeline['details']}")
     
     # Calculate total
-    labor_total = st.session_state.labor[0]["total"] if st.session_state.labor else 0
-    materials_total = sum(item["total"] for item in st.session_state.materials)
-    permit_total = st.session_state.permits[0]["cost"] if st.session_state.permits else 0
-    total_estimate = labor_total + materials_total + permit_total
+    total_estimate = (
+        data["labor_costs"]["total"] +
+        sum(item["total"] for item in data["material_costs"]["items"]) +
+        data["permit_fees"]["total"]
+    )
     
     # Total Cost
     st.markdown("---")
@@ -479,37 +415,40 @@ def display_cost_estimate(estimate_data):
     # Add PDF Export Button
     if st.button("📥 Export as PDF"):
         try:
-            from fpdf import FPDF
             import tempfile
             import os
+            from fpdf import FPDF
             
             # Create PDF
             pdf = FPDF()
             pdf.add_page()
             
-            # Set up styles
+            # Title
             pdf.set_font("Arial", "B", 16)
             pdf.cell(0, 10, "Cost Estimate", ln=True, align="C")
             pdf.ln(10)
             
             # Labor Costs
-            if st.session_state.labor:
+            if "labor_costs" in data:
                 pdf.set_font("Arial", "B", 14)
                 pdf.cell(0, 10, "Labor Costs", ln=True)
                 pdf.set_font("Arial", "", 12)
-                labor = st.session_state.labor[0]
+                labor = data["labor_costs"]
                 pdf.cell(0, 10, f"Description: {labor['description']}", ln=True)
-                pdf.cell(0, 10, f"Hours: {labor['hours']} @ ${labor['rate']}/hr = ${labor['total']:.2f}", ln=True)
+                pdf.cell(0, 10, f"Hours: {labor['total_hours']} @ ${labor['rate_per_hour']}/hr = ${labor['total']:.2f}", ln=True)
                 pdf.ln(5)
             
             # Materials
-            if st.session_state.materials:
+            if "material_costs" in data:
                 pdf.set_font("Arial", "B", 14)
                 pdf.cell(0, 10, "Materials", ln=True)
                 pdf.set_font("Arial", "", 12)
-                for material in st.session_state.materials:
-                    pdf.cell(0, 10, f"{material['name']} - Qty: {material['quantity']} @ ${material['price']}/unit = ${material['total']:.2f}", ln=True)
-                pdf.cell(0, 10, f"Materials Total: ${materials_total:.2f}", ln=True)
+                materials = data["material_costs"]
+                if "items" in materials:
+                    for item in materials["items"]:
+                        pdf.cell(0, 10, f"{item['item']} - Qty: {item['quantity']} @ ${item['price']}/unit = ${item['total']:.2f}", ln=True)
+                    materials_total = sum(item["total"] for item in materials["items"])
+                    pdf.cell(0, 10, f"Materials Total: ${materials_total:.2f}", ln=True)
                 pdf.ln(5)
             
             # Permits
@@ -517,6 +456,7 @@ def display_cost_estimate(estimate_data):
                 pdf.set_font("Arial", "B", 14)
                 pdf.cell(0, 10, "Permits and Inspections", ln=True)
                 pdf.set_font("Arial", "", 12)
+                permit = data["permit_fees"]
                 if "permits_required" in permit:
                     pdf.cell(0, 10, "Required Permits:", ln=True)
                     for p in permit["permits_required"]:
@@ -525,7 +465,7 @@ def display_cost_estimate(estimate_data):
                     pdf.cell(0, 10, "Required Inspections:", ln=True)
                     for i in permit["inspections_required"]:
                         pdf.cell(0, 10, f"- {i}", ln=True)
-                pdf.cell(0, 10, f"Permit Fees Total: ${permit_total:.2f}", ln=True)
+                pdf.cell(0, 10, f"Permit Fees Total: ${permit['total']:.2f}", ln=True)
                 pdf.ln(5)
             
             # Timeline
@@ -533,6 +473,7 @@ def display_cost_estimate(estimate_data):
                 pdf.set_font("Arial", "B", 14)
                 pdf.cell(0, 10, "Timeline", ln=True)
                 pdf.set_font("Arial", "", 12)
+                timeline = data["timeline"]
                 pdf.cell(0, 10, f"Duration: {timeline['duration']}", ln=True)
                 pdf.multi_cell(0, 10, f"Details: {timeline['details']}")
                 pdf.ln(5)
@@ -555,9 +496,10 @@ def display_cost_estimate(estimate_data):
                 
             # Read PDF file and create download button
             with open(tmp_file.name, "rb") as file:
-                btn = st.download_button(
+                pdf_data = file.read()
+                st.download_button(
                     label="Download PDF",
-                    data=file,
+                    data=pdf_data,
                     file_name="cost_estimate.pdf",
                     mime="application/pdf"
                 )
