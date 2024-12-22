@@ -266,17 +266,12 @@ def main():
     st.title("Electrician Assistant")
     initialize_session_state()
     
-    # Sidebar
-    st.sidebar.title("Navigation")
-    st.session_state.current_tab = st.sidebar.radio(
-        "Choose a feature:",
-        ["NEC Electrical Assistant", "Cost Estimator"]
-    )
+    # Create tabs instead of sidebar
+    nec_tab, cost_tab = st.tabs(["💡 NEC Electrical Assistant", "💰 Cost Estimator"])
     
-    # Main content
-    if st.session_state.current_tab == "NEC Electrical Assistant":
-        st.write("## 💬 NEC Electrical Assistant")
-        
+    # NEC Assistant Tab
+    with nec_tab:
+        st.write("## NEC Electrical Assistant")
         display_chat_history()
         
         if prompt := st.chat_input("Ask your question about electrical work:"):
@@ -289,15 +284,15 @@ def main():
                     response = get_chat_response(prompt)
                     st.write(response)
     
-    elif st.session_state.current_tab == "Cost Estimator":
-        st.subheader("Job Cost Estimator")
+    # Cost Estimator Tab
+    with cost_tab:
+        st.write("## Cost Estimator")
+        st.write("Describe the electrical work you need, and I'll provide a detailed cost estimate.")
         
-        job_description = st.text_area(
-            "Describe the electrical job:",
-            placeholder="Example: Install a 200A service panel with 20 circuit breakers..."
-        )
+        job_description = st.text_area("Job Description:", height=100,
+            placeholder="Example: Install a 200 amp service panel in a residential home in Los Angeles")
         
-        if st.button("Generate Estimate"):
+        if st.button("Generate Estimate", type="primary"):
             if job_description:
                 with st.spinner("Generating cost estimate..."):
                     estimate = create_cost_estimate(job_description)
