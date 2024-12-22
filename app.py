@@ -112,6 +112,159 @@ TECHNICAL DETAILS:
 
 Ensure all technical information is accurate and code-compliant."""
 
+def get_nec_code_info(query: str) -> dict:
+    """Get relevant NEC code information based on the query"""
+    
+    # Define NEC code sections with detailed explanations
+    nec_codes = {
+        "210.12": {
+            "title": "Arc-Fault Circuit-Interrupter Protection",
+            "description": """Key requirements for AFCI protection:
+            • Required for all 120V circuits in residential dwellings
+            • Must protect bedrooms, living rooms, kitchens, family rooms
+            • Protection required for branch circuits and feeders
+            • AFCI devices must be readily accessible
+            • Must be listed and marked as AFCI protection devices
+            • Required for replacement receptacles in these areas
+            • Must meet UL 1699 testing standards"""
+        },
+        "210.24": {
+            "title": "Branch Circuit Requirements",
+            "description": """Key requirements for branch circuits:
+            • Circuit rating must match standard ampere rating
+            • Conductor size must match overcurrent protection
+            • Maximum load must not exceed circuit rating
+            • Multi-wire circuits require common disconnect
+            • Must maintain proper wire gauge for length
+            • Voltage drop limited to 3% for branch circuits
+            • Must provide separate neutral for AFCI circuits"""
+        },
+        "240.4": {
+            "title": "Protection of Conductors",
+            "description": """Key requirements for conductor protection:
+            • Conductors must be protected at their ampacity
+            • Small conductors require specific protection
+            • Tap conductors have special sizing rules
+            • Must account for temperature correction factors
+            • Requires coordination with terminal temperature ratings
+            • Must protect all ungrounded conductors
+            • Cannot exceed maximum overcurrent protection size"""
+        },
+        "250.122": {
+            "title": "Equipment Grounding Conductor Sizing",
+            "description": """Key requirements for EGC sizing:
+            • Must be sized based on overcurrent device rating
+            • Minimum size specified in Table 250.122
+            • Must be increased for voltage drop compensation
+            • Parallel conductors require proper sizing
+            • Must maintain proper termination methods
+            • Cannot be smaller than specified minimums
+            • Must account for conduit fill requirements"""
+        },
+        "300.5": {
+            "title": "Underground Installation Requirements",
+            "description": """Key requirements for underground installations:
+            • Minimum burial depths specified by circuit type
+            • Must protect cables from physical damage
+            • Requires proper warning tape placement
+            • Must maintain separation from other utilities
+            • Requires proper raceway selection for soil
+            • Must account for frost line depth
+            • Requires proper drainage considerations"""
+        },
+        "310.15": {
+            "title": "Ampacities for Conductors",
+            "description": """Key requirements for conductor ampacity:
+            • Must use proper temperature correction factors
+            • Must account for ambient temperature
+            • Requires adjustment for conductor bundling
+            • Must consider raceway fill restrictions
+            • Solar heating must be considered
+            • Continuous loads require 125% sizing
+            • Must use proper terminal temperature ratings"""
+        },
+        "314.16": {
+            "title": "Box Fill Calculations",
+            "description": """Key requirements for box fill:
+            • Must count all conductors entering box
+            • Device yokes count as double volume
+            • Must include space for wire connectors
+            • Support fittings require volume allowance
+            • Equipment grounding conductors count as one
+            • Must maintain proper wire bending space
+            • Cannot exceed maximum fill percentage"""
+        },
+        "404.2": {
+            "title": "Switch Locations",
+            "description": """Key requirements for switch installation:
+            • Must be readily accessible
+            • Height restrictions for accessibility
+            • Requires proper workspace clearances
+            • Must be grounded if in metallic box
+            • Wet locations require special enclosures
+            • Must identify switched neutral when used
+            • Requires proper wire bending space"""
+        },
+        "406.4": {
+            "title": "Receptacle Requirements",
+            "description": """Key requirements for receptacles:
+            • Must be listed for the location
+            • Proper orientation must be maintained
+            • GFCI protection where required
+            • Tamper-resistant in specified locations
+            • Weather-resistant in wet locations
+            • Must be properly secured to box
+            • Requires proper grounding methods"""
+        },
+        "408.36": {
+            "title": "Panelboard Overcurrent Protection",
+            "description": """Key requirements for panelboard protection:
+            • Main breaker required unless specific exceptions met
+            • Must not exceed panelboard rating
+            • Back-fed breakers require securing means
+            • Must maintain proper wire bending space
+            • Series-rated systems must be labeled
+            • Must maintain proper working clearances
+            • Requires proper grounding methods"""
+        }
+    }
+    
+    # Process the query to find relevant codes
+    relevant_codes = {}
+    query_lower = query.lower()
+    
+    for code, info in nec_codes.items():
+        # Check if code number is directly mentioned
+        if code in query:
+            relevant_codes[code] = info
+            continue
+            
+        # Check if title matches
+        if info["title"].lower() in query_lower:
+            relevant_codes[code] = info
+            continue
+            
+        # Check for keyword matches in description
+        keywords = query_lower.split()
+        desc_lower = info["description"].lower()
+        if any(keyword in desc_lower for keyword in keywords):
+            relevant_codes[code] = info
+    
+    # Format the response
+    if relevant_codes:
+        response = "Here are the relevant NEC code sections:\n\n"
+        for code, info in relevant_codes.items():
+            response += f"**{code} {info['title']}**\n"
+            response += "\n".join([f"- {line}" for line in info["description"].split("\n")]) + "\n\n"
+    else:
+        response = "No directly relevant NEC codes found for your query. Please try rephrasing or being more specific."
+    
+    return {
+        "found": bool(relevant_codes),
+        "codes": relevant_codes,
+        "response": response
+    }
+
 def format_nec_response(response: str) -> str:
     """Format the NEC assistant response with detailed code explanations."""
     # Regular expression to find NEC code references in various formats
@@ -120,30 +273,11 @@ def format_nec_response(response: str) -> str:
     def format_nec_code(match):
         code = match.group(1)
         # Replace with detailed summaries based on the NEC code
-        summaries = {
-            "210.12": "📖 NEC 210.12 - Arc-Fault Circuit-Interrupter Protection:\n"
-                     "• Required for all 120V circuits in residential dwellings\n"
-                     "• Must protect bedrooms, living rooms, kitchens, family rooms\n"
-                     "• Covers both branch circuits and feeders\n"
-                     "• Includes requirements for replacement receptacles\n"
-                     "• Specifies testing and maintenance procedures",
-            
-            "210.24": "📖 NEC 210.24 - Branch Circuit Requirements:\n"
-                      "• Defines voltage limitations for different circuits\n"
-                      "• Specifies conductor sizes and circuit ratings\n"
-                      "• Details overcurrent protection requirements\n"
-                      "• Lists maximum loads for specific circuit types\n"
-                      "• Includes special provisions for multi-wire circuits",
-            
-            "240.4": "📖 NEC 240.4 - Protection of Conductors:\n"
-                     "• Mandates proper sizing of overcurrent protection\n"
-                     "• Specifies conductor ampacity requirements\n"
-                     "• Details small conductor protection rules\n"
-                     "• Covers temperature limitations\n"
-                     "• Includes tap conductor requirements"
-        }
-        
-        return summaries.get(code, f"📖 NEC {code} - Refer to official NEC documentation for detailed requirements")
+        nec_info = get_nec_code_info(code)
+        if nec_info["found"]:
+            return nec_info["response"]
+        else:
+            return f"📖 NEC {code} - Refer to official NEC documentation for detailed requirements"
     
     # Replace NEC references with detailed summaries
     formatted_response = re.sub(nec_pattern, format_nec_code, response)
