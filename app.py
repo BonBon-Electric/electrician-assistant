@@ -157,52 +157,23 @@ def display_chat_history():
             else:
                 st.write(message["content"])
 
-def create_cost_estimate(description: str):
-    """Generate a cost estimate based on the job description"""
-    # Initialize estimate conversation if not exists
-    if 'estimate_conversation' not in st.session_state:
-        st.session_state.estimate_conversation = []
-        
-    # Add user's description to conversation
-    if not st.session_state.estimate_conversation:
-        st.session_state.estimate_conversation.append({"role": "user", "content": description})
+def create_cost_estimate(description: str, additional_info: dict = None):
+    """Generate a cost estimate based on the job description and optional additional info"""
+    if additional_info is None:
+        additional_info = {}
     
-    # Prepare the prompt with required information checklist
-    required_info = {
-        'location': ['city', 'state', 'property type (residential/commercial)'],
-        'electrical': ['voltage requirements', 'amperage', 'number of circuits'],
-        'scope': ['timeline', 'accessibility', 'existing conditions'],
-        'materials': ['specific equipment preferences', 'quality grade (standard/premium)']
-    }
+    # Combine description with any additional info provided
+    full_description = description + "\n\n"
+    if additional_info:
+        full_description += "Additional Details:\n"
+        for key, value in additional_info.items():
+            if value:  # Only add if value is provided
+                full_description += f"- {key}: {value}\n"
     
-    # Check if we have all required information
-    missing_info = []
-    description_lower = description.lower()
-    
-    for category, items in required_info.items():
-        for item in items:
-            # Simple check for presence of keywords
-            if not any(keyword in description_lower for keyword in item.lower().split()):
-                missing_info.append(item)
-    
-    # If information is missing, generate follow-up questions
-    if missing_info:
-        prompt = f"""Based on the following job description: '{description}', 
-        I notice some important details are missing. Please help me gather the following information:
-        
-        {', '.join(missing_info)}
-        
-        Please provide a friendly response asking for these details, explaining why they're important for an accurate estimate."""
-        
-        response = model.generate_content(prompt).text
-        
-        # Add the response to conversation
-        st.session_state.estimate_conversation.append({"role": "assistant", "content": response})
-        return {"status": "need_more_info", "message": response}
-    
-    # If we have all information, generate the estimate
     prompt = f"""As an experienced electrical contractor, create a detailed cost estimate for the following job:
-    {description}
+    {full_description}
+    
+    Note: This is a {'detailed' if additional_info else 'general'} estimate based on the information provided.
     
     Please include:
     1. Labor costs (breakdown of hours and rates)
@@ -211,6 +182,7 @@ def create_cost_estimate(description: str):
     4. Overhead and profit
     5. Timeline for completion
     6. Any potential additional costs or variables
+    7. Confidence level of the estimate based on information provided
     
     Format the response as a JSON object with these categories."""
     
@@ -222,60 +194,146 @@ def create_cost_estimate(description: str):
     except Exception as e:
         return {"status": "error", "message": f"Error generating estimate: {str(e)}"}
 
-def display_cost_estimate(estimate_data):
-    """Display the cost estimate or follow-up questions"""
-    if estimate_data["status"] == "need_more_info":
-        st.write("📝 Additional Information Needed:")
-        st.write(estimate_data["message"])
+def display_cost_estimate_form():
+    """Display the cost estimate form with optional fields"""
+    st.write(f"## {get_text('cost_estimator_title')}")
+    st.write(get_text('cost_estimator_description'))
+    
+    # Basic job description
+    job_description = st.text_area(
+        get_text('job_description'),
+        height=100,
+        placeholder=get_text('job_description_placeholder')
+    )
+    
+    # Optional details section
+    with st.expander("📝 Additional Details (Optional)", expanded=False):
+        st.info("These details will help provide a more accurate estimate, but all fields are optional.")
         
-        # Display the conversation history
-        for message in st.session_state.estimate_conversation:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
-                
-        # Add input for user's response
-        if user_response := st.chat_input("Your response:"):
-            st.session_state.estimate_conversation.append({"role": "user", "content": user_response})
-            # Combine all user responses for a complete description
-            full_description = " ".join([msg["content"] for msg in st.session_state.estimate_conversation if msg["role"] == "user"])
-            new_estimate = create_cost_estimate(full_description)
-            display_cost_estimate(new_estimate)
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Location details
+            st.subheader("📍 Location")
+            location_type = st.selectbox(
+                "Property Type",
+                options=["", "Residential", "Commercial", "Industrial"],
+                index=0
+            )
+            city = st.text_input("City")
+            state = st.selectbox(
+                "State",
+                options=["", "CA", "Other"],
+                index=0
+            )
             
-    elif estimate_data["status"] == "complete":
+            # Electrical specifications
+            st.subheader("⚡ Electrical Specs")
+            voltage = st.selectbox(
+                "Voltage Requirements",
+                options=["", "120V", "240V", "208V", "480V"],
+                index=0
+            )
+            amperage = st.selectbox(
+                "Amperage",
+                options=["", "15A", "20A", "30A", "50A", "100A", "200A", "400A"],
+                index=0
+            )
+            
+        with col2:
+            # Project scope
+            st.subheader("🔨 Project Scope")
+            timeline_urgency = st.select_slider(
+                "Timeline Urgency",
+                options=["", "Flexible", "Normal", "Urgent"],
+                value=""
+            )
+            accessibility = st.select_slider(
+                "Job Site Accessibility",
+                options=["", "Easy", "Moderate", "Difficult"],
+                value=""
+            )
+            
+            # Material preferences
+            st.subheader("🛠️ Materials")
+            quality_grade = st.select_slider(
+                "Material Quality Grade",
+                options=["", "Standard", "Premium", "Luxury"],
+                value=""
+            )
+            
+    # Collect all the additional information
+    additional_info = {
+        "Property Type": location_type,
+        "City": city,
+        "State": state,
+        "Voltage": voltage,
+        "Amperage": amperage,
+        "Timeline": timeline_urgency,
+        "Accessibility": accessibility,
+        "Material Grade": quality_grade
+    }
+    
+    # Remove empty values
+    additional_info = {k: v for k, v in additional_info.items() if v}
+    
+    if st.button(get_text('generate_estimate'), type="primary"):
+        if job_description:
+            with st.spinner(get_text('generating_estimate')):
+                estimate = create_cost_estimate(job_description, additional_info)
+                display_cost_estimate(estimate)
+        else:
+            st.warning(get_text('provide_description'))
+
+def display_cost_estimate(estimate_data):
+    """Display the cost estimate results"""
+    if estimate_data["status"] == "complete":
         st.success("✅ Cost Estimate Generated")
         
-        # Display the estimate in a structured format
         data = estimate_data["data"]
+        
+        # Confidence Level (if provided)
+        if "confidence_level" in data:
+            confidence_color = {
+                "high": "green",
+                "medium": "orange",
+                "low": "red"
+            }.get(data.get("confidence_level", "").lower(), "grey")
+            st.markdown(f"*Confidence Level: <span style='color:{confidence_color}'>{data['confidence_level']}</span>*", unsafe_allow_html=True)
         
         # Labor Costs
         st.subheader("👷 Labor Costs")
         if "labor_costs" in data:
             st.write(data["labor_costs"])
-            
+        
         # Material Costs
         st.subheader("🛠️ Materials")
         if "material_costs" in data:
             st.write(data["material_costs"])
-            
+        
         # Permits and Inspections
         st.subheader("📋 Permits and Inspections")
         if "permit_fees" in data:
             st.write(data["permit_fees"])
-            
+        
         # Timeline
         st.subheader("⏱️ Timeline")
         if "timeline" in data:
             st.write(data["timeline"])
-            
+        
         # Total Cost
         st.subheader("💰 Total Cost")
         if "total_cost" in data:
             st.metric("Estimated Total", f"${data['total_cost']:,.2f}")
-            
+        
         # Additional Notes
         if "additional_costs" in data:
             st.subheader("📝 Additional Notes")
             st.write(data["additional_costs"])
+            
+        # Disclaimer for generic estimates
+        if not any(k for k in estimate_data.get("data", {}).keys() if k.startswith("user_")):
+            st.info("Note: This is a general estimate based on limited information. Actual costs may vary significantly. Contact us for a more accurate quote.")
     else:
         st.error(estimate_data["message"])
 
@@ -325,22 +383,7 @@ def main():
                     st.write(response)
     
     else:  # Cost Estimator
-        st.write(f"## {get_text('cost_estimator_title')}")
-        st.write(get_text('cost_estimator_description'))
-        
-        job_description = st.text_area(
-            get_text('job_description'),
-            height=100,
-            placeholder=get_text('job_description_placeholder')
-        )
-        
-        if st.button(get_text('generate_estimate'), type="primary"):
-            if job_description:
-                with st.spinner(get_text('generating_estimate')):
-                    estimate = create_cost_estimate(job_description)
-                    display_cost_estimate(estimate)
-            else:
-                st.warning(get_text('provide_description'))
+        display_cost_estimate_form()
 
 if __name__ == "__main__":
     main()
