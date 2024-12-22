@@ -113,26 +113,42 @@ TECHNICAL DETAILS:
 Ensure all technical information is accurate and code-compliant."""
 
 def format_nec_response(response: str) -> str:
-    """Format the NEC assistant response with proper styling and links"""
+    """Format the NEC assistant response with detailed code explanations."""
+    # Regular expression to find NEC code references in various formats
+    nec_pattern = r'NEC (\d+\.\d+)(?:\s*\([A-Za-z]\))?'
     
-    # Remove section titles while keeping the content
-    response = re.sub(r'^SUMMARY:\s*', '', response, flags=re.MULTILINE)
-    response = re.sub(r'^DETAILED RESPONSE:\s*', '', response, flags=re.MULTILINE)
-    
-    # Format NEC code references as links with proper styling
-    def replace_nec_reference(match):
+    def format_nec_code(match):
         code = match.group(1)
-        return f'<a href="https://www.nfpa.org/codes-and-standards/all-codes-and-standards/list-of-codes-and-standards/detail?code=70&section={code}" target="_blank" style="text-decoration: none; color: #0366d6;">NEC {code} 📖</a>'
+        # Replace with detailed summaries based on the NEC code
+        summaries = {
+            "210.12": "📖 NEC 210.12 - Arc-Fault Circuit-Interrupter Protection:\n"
+                     "• Required for all 120V circuits in residential dwellings\n"
+                     "• Must protect bedrooms, living rooms, kitchens, family rooms\n"
+                     "• Covers both branch circuits and feeders\n"
+                     "• Includes requirements for replacement receptacles\n"
+                     "• Specifies testing and maintenance procedures",
+            
+            "210.24": "📖 NEC 210.24 - Branch Circuit Requirements:\n"
+                      "• Defines voltage limitations for different circuits\n"
+                      "• Specifies conductor sizes and circuit ratings\n"
+                      "• Details overcurrent protection requirements\n"
+                      "• Lists maximum loads for specific circuit types\n"
+                      "• Includes special provisions for multi-wire circuits",
+            
+            "240.4": "📖 NEC 240.4 - Protection of Conductors:\n"
+                     "• Mandates proper sizing of overcurrent protection\n"
+                     "• Specifies conductor ampacity requirements\n"
+                     "• Details small conductor protection rules\n"
+                     "• Covers temperature limitations\n"
+                     "• Includes tap conductor requirements"
+        }
+        
+        return summaries.get(code, f"📖 NEC {code} - Refer to official NEC documentation for detailed requirements")
     
-    # Update the pattern to match various NEC reference formats
-    response = re.sub(r'NEC (\d+\.\d+(?:\([a-z]\))?(?:\(\d+\))?)', replace_nec_reference, response)
+    # Replace NEC references with detailed summaries
+    formatted_response = re.sub(nec_pattern, format_nec_code, response)
     
-    # Add subtle separator before each main section
-    response = re.sub(r'^RELEVANT NEC CODES:', '\n---\n\n📚 RELEVANT NEC CODES:', response, flags=re.MULTILINE)
-    response = re.sub(r'^PERMITS AND INSPECTIONS', '\n---\n\n📋 PERMITS AND INSPECTIONS', response, flags=re.MULTILINE)
-    response = re.sub(r'^TECHNICAL DETAILS:', '\n---\n\n🔧 TECHNICAL DETAILS:', response, flags=re.MULTILINE)
-    
-    return response
+    return formatted_response
 
 def get_gemini_response(prompt: str, context: str = "") -> str:
     """Get response from Gemini model"""
@@ -165,9 +181,9 @@ def get_chat_response(prompt: str) -> str:
     
     response = get_gemini_response(prompt, context)
     
-    # Format NEC references as clickable links
-    response_with_links = format_nec_response(response)
-    return response_with_links
+    # Format NEC references as detailed summaries
+    response_with_summaries = format_nec_response(response)
+    return response_with_summaries
 
 def display_chat_history():
     """Display chat history with clickable NEC references"""
