@@ -266,11 +266,18 @@ def main():
     st.title("Electrician Assistant")
     initialize_session_state()
     
-    # Create tabs instead of sidebar
-    nec_tab, cost_tab = st.tabs(["💡 NEC Electrical Assistant", "💰 Cost Estimator"])
+    # Create mode selector in the main content area
+    st.session_state.current_tab = st.radio(
+        "",  # Empty label for cleaner look
+        ["💡 NEC Electrical Assistant", "💰 Cost Estimator"],
+        horizontal=True,  # Make the radio buttons horizontal
+        label_visibility="collapsed"  # Hide the empty label
+    )
     
-    # NEC Assistant Tab
-    with nec_tab:
+    st.divider()  # Add a visual separator
+    
+    # Main content
+    if st.session_state.current_tab == "💡 NEC Electrical Assistant":
         st.write("## NEC Electrical Assistant")
         display_chat_history()
         
@@ -284,8 +291,7 @@ def main():
                     response = get_chat_response(prompt)
                     st.write(response)
     
-    # Cost Estimator Tab
-    with cost_tab:
+    else:  # Cost Estimator
         st.write("## Cost Estimator")
         st.write("Describe the electrical work you need, and I'll provide a detailed cost estimate.")
         
