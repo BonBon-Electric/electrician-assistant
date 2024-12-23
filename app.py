@@ -224,6 +224,67 @@ def is_electrical_question(text: str) -> bool:
                          'outlet', 'switch', 'power', 'install', 'repair', 'light', 'socket', 'nec']
     return any(keyword in text.lower() for keyword in electrical_keywords)
 
+def get_initial_response(prompt: str, context: str = "") -> str:
+    """Get initial concise response from Gemini"""
+    system_prompt = """You are an expert electrical contractor. Provide a clear, concise answer to the question.
+    Focus on practical information and immediate safety considerations. Keep the response brief and actionable."""
+    
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": f"Context: {context}\nQuestion: {prompt}"}
+    ]
+    response = model.generate_content([m["content"] for m in messages])
+    return response.text
+
+def get_nec_verification(prompt: str, initial_response: str) -> dict:
+    """Get NEC codes and verify response accuracy"""
+    # Query RAG for relevant NEC codes
+    results = collection.query(
+        query_texts=[prompt],
+        n_results=2
+    )
+    
+    nec_context = ""
+    if results and results['documents'][0]:
+        nec_context = "\n".join(results['documents'][0])
+    
+    # Verify accuracy using Gemini
+    verify_prompt = f"""As an electrical code expert, review this response and NEC codes:
+
+Response: {initial_response}
+
+Relevant NEC Codes: {nec_context}
+
+Verify the accuracy of the response and provide:
+1. Relevant NEC codes that apply
+2. Any corrections or additional safety considerations
+3. Confirmation of accuracy or notes on discrepancies"""
+
+    verification = model.generate_content(verify_prompt)
+    
+    return {
+        "nec_codes": nec_context,
+        "verification": verification.text
+    }
+
+def get_detailed_response(prompt: str, context: str = "") -> str:
+    """Get detailed technical response"""
+    detailed_prompt = """You are an expert electrical contractor. Provide a comprehensive response including:
+    1. Technical specifications
+    2. Step-by-step instructions
+    3. Safety requirements
+    4. Required tools and materials
+    5. Best practices and common mistakes
+    6. Relevant permits and inspections
+    Make sure all information is accurate and follows current electrical codes."""
+    
+    messages = [
+        {"role": "system", "content": detailed_prompt},
+        {"role": "user", "content": f"Context: {context}\nQuestion: {prompt}"}
+    ]
+    response = model.generate_content([m["content"] for m in messages])
+    return response.text
+
 def get_chat_response(prompt: str) -> str:
     """Get response from Gemini model with enhanced NEC reference handling"""
     context = ""
@@ -233,11 +294,24 @@ def get_chat_response(prompt: str) -> str:
         # Enhance the prompt to encourage NEC references
         prompt = get_nec_assistant_prompt(prompt)
     
-    response = get_gemini_response(prompt, context)
+    # Get initial response
+    initial_response = get_initial_response(prompt, context)
+    
+    # Get NEC verification
+    verification = get_nec_verification(prompt, initial_response)
     
     # Format NEC references as detailed summaries
-    response_with_summaries = format_nec_response(response)
-    return response_with_summaries
+    response_with_summaries = format_nec_response(initial_response)
+    
+    # Add NEC verification and detailed response button
+    response_with_verification = f"{response_with_summaries}\n\n**NEC Code Verification**\n{verification['verification']}\n\n"
+    response_with_verification += "**Detailed Technical Response**\n"
+    response_with_verification += "Click the button below to view the detailed technical response.\n"
+    response_with_verification += "This response includes technical specifications, step-by-step instructions, safety requirements, and more.\n"
+    response_with_verification += "Please note that this response may take a few seconds to generate.\n"
+    response_with_verification += "**View Detailed Response**\n"
+    
+    return response_with_verification
 
 def display_chat_history():
     """Display chat history with clickable NEC references"""
