@@ -286,29 +286,35 @@ def get_detailed_response(prompt: str, context: str = "") -> str:
     return response.text
 
 def get_chat_response(prompt: str) -> str:
-    """Get response from Gemini model and relevant NEC codes"""
+    """Get response from Gemini model and ensure NEC codes are included"""
     
-    # Get Gemini response first
-    gemini_prompt = """You are an expert electrical contractor. Answer this electrical question with practical, accurate information:
+    # First get relevant NEC codes from RAG
+    results = collection.query(
+        query_texts=[prompt],
+        n_results=3  # Increased to get more relevant codes
+    )
+    
+    rag_nec_codes = ""
+    if results and results['documents'][0]:
+        rag_nec_codes = "\n".join(results['documents'][0])
+    
+    # Get response from Gemini with NEC code requirement
+    gemini_prompt = f"""You are an expert electrical contractor. Answer this electrical question with practical, accurate information. 
+IMPORTANT: You MUST include all relevant NEC code references and requirements that apply to this situation.
 
-Question: """ + prompt
+Question: {prompt}
+
+Here are some relevant NEC codes to consider (verify and include any additional relevant codes):
+{rag_nec_codes}"""
     
     response = model.generate_content(gemini_prompt)
     
-    # Get relevant NEC codes from RAG
-    results = collection.query(
-        query_texts=[prompt],
-        n_results=2
-    )
+    # Add RAG NEC codes if they weren't already mentioned in the response
+    final_response = response.text
+    if rag_nec_codes and not any(code in response.text for code in ["NEC", "Code", "Article"]):
+        final_response += "\n\n### Additional Relevant NEC Codes:\n" + rag_nec_codes
     
-    nec_codes = ""
-    if results and results['documents'][0]:
-        nec_codes = "\n\n### Relevant NEC Codes:\n" + "\n".join(results['documents'][0])
-    
-    # Combine response and NEC codes
-    full_response = response.text + nec_codes
-    
-    return full_response
+    return final_response
 
 def display_chat_history():
     """Display chat history with clickable NEC references"""
