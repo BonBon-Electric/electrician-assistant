@@ -286,32 +286,29 @@ def get_detailed_response(prompt: str, context: str = "") -> str:
     return response.text
 
 def get_chat_response(prompt: str) -> str:
-    """Get response from Gemini model with enhanced NEC reference handling"""
-    context = ""
+    """Get response from Gemini model and relevant NEC codes"""
     
-    # Check if it's an electrical code question
-    if is_electrical_question(prompt):
-        # Enhance the prompt to encourage NEC references
-        prompt = get_nec_assistant_prompt(prompt)
+    # Get Gemini response first
+    gemini_prompt = """You are an expert electrical contractor. Answer this electrical question with practical, accurate information:
+
+Question: """ + prompt
     
-    # Get initial response
-    initial_response = get_initial_response(prompt, context)
+    response = model.generate_content(gemini_prompt)
     
-    # Get NEC verification
-    verification = get_nec_verification(prompt, initial_response)
+    # Get relevant NEC codes from RAG
+    results = collection.query(
+        query_texts=[prompt],
+        n_results=2
+    )
     
-    # Format NEC references as detailed summaries
-    response_with_summaries = format_nec_response(initial_response)
+    nec_codes = ""
+    if results and results['documents'][0]:
+        nec_codes = "\n\n### Relevant NEC Codes:\n" + "\n".join(results['documents'][0])
     
-    # Add NEC verification and detailed response button
-    response_with_verification = f"{response_with_summaries}\n\n**NEC Code Verification**\n{verification['verification']}\n\n"
-    response_with_verification += "**Detailed Technical Response**\n"
-    response_with_verification += "Click the button below to view the detailed technical response.\n"
-    response_with_verification += "This response includes technical specifications, step-by-step instructions, safety requirements, and more.\n"
-    response_with_verification += "Please note that this response may take a few seconds to generate.\n"
-    response_with_verification += "**View Detailed Response**\n"
+    # Combine response and NEC codes
+    full_response = response.text + nec_codes
     
-    return response_with_verification
+    return full_response
 
 def display_chat_history():
     """Display chat history with clickable NEC references"""
