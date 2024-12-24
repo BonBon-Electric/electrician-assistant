@@ -12,7 +12,8 @@ TRANSLATIONS = {
         'generate_estimate': 'Generate Estimate',
         'provide_description': 'Please provide a job description.',
         'thinking': 'Thinking...',
-        'generating_estimate': 'Generating cost estimate...'
+        'generating_estimate': 'Generating cost estimate...',
+        'nec_assistant_description': 'Ask me any questions about electrical work and NEC code requirements.'
     },
     'es': {
         'app_title': 'Asistente Electricista',
@@ -27,6 +28,7 @@ TRANSLATIONS = {
         'generate_estimate': 'Generar Presupuesto',
         'provide_description': 'Por favor proporcione una descripción del trabajo.',
         'thinking': 'Pensando...',
-        'generating_estimate': 'Generando presupuesto...'
+        'generating_estimate': 'Generando presupuesto...',
+        'nec_assistant_description': 'Hazme cualquier pregunta sobre trabajo eléctrico y requisitos del código NEC.'
     }
 }
