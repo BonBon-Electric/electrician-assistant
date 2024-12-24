@@ -58,10 +58,21 @@ def initialize_session_state():
         st.session_state.estimates_history = []
 
 def update_chat_history(role: str, content: str):
+    """Update chat history with new message"""
     st.session_state.chat_history.append({"role": role, "content": content})
-    # Keep last 10 messages for context
-    if len(st.session_state.chat_history) > 10:
-        st.session_state.chat_history = st.session_state.chat_history[-10:]
+    # No longer limiting to 10 messages
+
+def get_conversation_context() -> str:
+    """Get context from previous messages"""
+    context = ""
+    if len(st.session_state.chat_history) > 0:
+        # Get last 3 exchanges (6 messages) for context
+        recent_messages = st.session_state.chat_history[-6:]
+        context = "\n".join([
+            f"{msg['role']}: {msg['content']}" 
+            for msg in recent_messages
+        ])
+    return context
 
 def get_nec_assistant_prompt(query: str) -> str:
     """Generate the prompt for the NEC Electrical Assistant"""
@@ -288,6 +299,9 @@ def get_detailed_response(prompt: str, context: str = "") -> str:
 def get_chat_response(prompt: str) -> str:
     """Get response from Gemini model and ensure NEC codes are included"""
     
+    # Get conversation context
+    context = get_conversation_context()
+    
     # First get relevant NEC codes from RAG
     results = collection.query(
         query_texts=[prompt],
@@ -301,8 +315,13 @@ def get_chat_response(prompt: str) -> str:
     # Get response from Gemini with structured format requirement
     gemini_prompt = f"""You are an experienced master electrician talking to another electrician. Structure your response exactly like this:
 
+Previous conversation context:
+{context}
+
+Current question: {prompt}
+
 Summary:
-Give a clear 1-2 paragraph summary explaining {prompt} in a conversational, easy-to-understand way. Focus on what another electrician needs to know to do the job correctly.
+Give a clear 1-2 paragraph summary explaining the answer in a conversational, easy-to-understand way. Focus on what another electrician needs to know to do the job correctly. Reference any relevant information from the previous conversation if applicable.
 
 Relevant NEC Codes:
 List ALL relevant NEC codes that apply. For each code:
