@@ -316,22 +316,24 @@ def get_detailed_response(prompt: str, context: str = "") -> str:
 
 def get_chat_response(prompt):
     """Get response from the assistant"""
-    with st.spinner(get_text('thinking')):
-        try:
-            model = genai.GenerativeModel('gemini-pro')
-            response = model.generate_content(prompt)
-            if response.parts:
-                return response.text
-            return get_text('error_message')
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
-            return get_text('error_message')
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        response = model.generate_content(prompt)
+        if response.parts:
+            return response.text
+        return get_text('error_message')
+    except Exception as e:
+        st.error(f"Error: {str(e)}")
+        return get_text('error_message')
 
 def display_chat_history():
     """Display the chat history using Streamlit's chat message containers"""
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+        role = message.get("role", "")
+        content = message.get("content", "")
+        if role and content:  # Only display if both role and content exist
+            with st.chat_message(role):
+                st.write(content)
 
 def update_chat_history(role, content):
     """Add a message to the chat history"""
@@ -341,15 +343,26 @@ def update_chat_history(role, content):
 
 def get_chat_response(prompt):
     """Get response from the assistant"""
-    with st.spinner(get_text('thinking')):
-        try:
-            model = genai.GenerativeModel('gemini-pro')
-            chat = model.start_chat(history=st.session_state.messages)
-            response = chat.send_message(prompt)
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        context = get_conversation_context()
+        
+        # Format the prompt with context
+        full_prompt = f"""Previous context: {context}
+        
+        Question: {prompt}
+        
+        Please provide a clear, detailed response about electrical work and NEC requirements. Include specific code references where applicable."""
+        
+        response = model.generate_content(full_prompt)
+        
+        if response and hasattr(response, 'text'):
             return response.text
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
-            return get_text('error_message')
+        return "I apologize, but I couldn't generate a proper response. Please try rephrasing your question."
+        
+    except Exception as e:
+        st.error(f"Error: {str(e)}")
+        return get_text('error_message')
 
 def create_cost_estimate(description: str, additional_info: dict = None):
     """Generate a cost estimate based on the job description and optional additional info"""
