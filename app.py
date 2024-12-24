@@ -15,6 +15,15 @@ import re
 # Load environment variables
 load_dotenv()
 
+# Get project paths
+PROJECT_ROOT = os.getenv("PROJECT_ROOT", "C:/Users/bonbo/OneDrive/BonBon-Electric/electrician-assistant")
+DATA_DIR = os.getenv("DATA_DIR", os.path.join(PROJECT_ROOT, "data"))
+MODEL_DIR = os.getenv("MODEL_DIR", os.path.join(PROJECT_ROOT, "models"))
+
+# Ensure directories exist
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(MODEL_DIR, exist_ok=True)
+
 # Configure Gemini API
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 if not GOOGLE_API_KEY:
