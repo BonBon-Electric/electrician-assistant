@@ -348,14 +348,19 @@ Remember: Keep the summary simple and practical, but be thorough in explaining t
 
 def display_chat_history():
     """Display chat history with clickable NEC references"""
-    for message in st.session_state.chat_history:
-        with st.chat_message(message["role"]):
-            if message["role"] == "assistant":
-                # Format NEC references in assistant's responses
-                formatted_message = format_nec_response(message["content"])
-                st.markdown(formatted_message, unsafe_allow_html=True)
-            else:
-                st.write(message["content"])
+    # Create a container for the chat history
+    chat_container = st.container()
+    
+    with chat_container:
+        for message in st.session_state.chat_history:
+            with st.chat_message(message["role"]):
+                if message["role"] == "assistant":
+                    # Format NEC references in assistant's responses
+                    formatted_message = format_nec_response(message["content"])
+                    st.markdown(formatted_message, unsafe_allow_html=True)
+                else:
+                    # Display user messages as is
+                    st.markdown(message["content"])
 
 def create_cost_estimate(description: str, additional_info: dict = None):
     """Generate a cost estimate based on the job description and optional additional info"""
@@ -826,17 +831,26 @@ def main():
     # Main content
     if st.session_state.current_tab == get_text('nec_assistant'):
         st.write(f"## {get_text('nec_assistant')}")
-        display_chat_history()
         
-        if prompt := st.chat_input(get_text('chat_placeholder')):
-            update_chat_history("user", prompt)
-            with st.chat_message("user"):
-                st.write(prompt)
+        # Create a container for the chat interface
+        chat_interface = st.container()
+        
+        with chat_interface:
+            # Display existing chat history
+            display_chat_history()
+            
+            # Get user input
+            if prompt := st.chat_input(get_text('chat_placeholder')):
+                # Add user message to history
+                update_chat_history("user", prompt)
                 
-            with st.chat_message("assistant"):
+                # Get and display assistant response
                 with st.spinner(get_text('thinking')):
                     response = get_chat_response(prompt)
-                    st.write(response)
+                    update_chat_history("assistant", response)
+                
+                # Force a rerun to update the display
+                st.rerun()
     
     else:  # Cost Estimator
         display_cost_estimate_form()
