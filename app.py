@@ -825,35 +825,50 @@ def display_cost_estimate_form():
             display_cost_estimate(estimate)
 
 def main():
-    initialize_session_state()  # Initialize first!
+    initialize_session_state()
+    
+    # Language selector in sidebar
+    current_language = 'English' if st.session_state.language == 'en' else 'Español'
+    selected_language = st.sidebar.selectbox(
+        "🌐 Select Language / Seleccionar Idioma",
+        options=['English', 'Español'],
+        index=['English', 'Español'].index(current_language)
+    )
+    
+    # Update language state if changed
+    if (selected_language == 'English' and st.session_state.language != 'en') or \
+       (selected_language == 'Español' and st.session_state.language != 'es'):
+        st.session_state.language = 'en' if selected_language == 'English' else 'es'
+        st.rerun()
     
     st.title(get_text('app_title'))
     
-    # Create tabs
+    # Create mode selector
     tab_labels = [get_text('nec_assistant'), get_text('cost_estimator')]
-    nec_tab, cost_tab = st.tabs(tab_labels)
+    selected_tab = st.radio("", tab_labels, horizontal=True, label_visibility="collapsed")
     
-    # Handle chat input before tabs
-    prompt = st.chat_input(get_text('chat_placeholder'))
+    st.divider()
     
-    with nec_tab:
+    if selected_tab == get_text('nec_assistant'):
+        # Display chat interface
         st.write(get_text('nec_assistant_description'))
         display_chat_history()
         
+        # Get user input
+        prompt = st.chat_input(get_text('chat_placeholder'))
         if prompt:
             # Add user message to history
             update_chat_history("user", prompt)
             
             # Get assistant response
-            response = get_chat_response(prompt)
-            
-            # Add assistant response to history
-            update_chat_history("assistant", response)
+            with st.spinner(get_text('thinking')):
+                response = get_chat_response(prompt)
+                update_chat_history("assistant", response)
             
             # Force a rerun to update the display
             st.rerun()
-    
-    with cost_tab:
+    else:
+        # Display cost estimator
         display_cost_estimate_form()
 
 if __name__ == "__main__":
