@@ -314,55 +314,18 @@ def get_detailed_response(prompt: str, context: str = "") -> str:
     response = model.generate_content([m["content"] for m in messages])
     return response.text
 
-def get_chat_response(prompt: str) -> str:
-    """Get response from Gemini model and ensure NEC codes are included"""
-    
-    # Get conversation context
-    context = get_conversation_context()
-    
-    # First get relevant NEC codes from RAG
-    results = collection.query(
-        query_texts=[prompt],
-        n_results=3
-    )
-    
-    rag_nec_codes = ""
-    if results and results['documents'][0]:
-        rag_nec_codes = "\n".join(results['documents'][0])
-    
-    # Get response from Gemini with structured format requirement
-    gemini_prompt = f"""You are an experienced master electrician talking to another electrician. Structure your response exactly like this:
-
-Previous conversation context:
-{context}
-
-Current question: {prompt}
-
-Summary:
-Give a clear 1-2 paragraph summary explaining the answer in a conversational, easy-to-understand way. Focus on what another electrician needs to know to do the job correctly. Reference any relevant information from the previous conversation if applicable.
-
-Relevant NEC Codes:
-List ALL relevant NEC codes that apply. For each code:
-- State the code number and title
-- Explain in detail what the code requires
-- Describe how it applies to this specific situation
-- Include any measurements, distances, or specifications required
-- Mention any exceptions or special conditions
-- Add any practical tips related to following this code
-
-Here are some relevant NEC codes to reference:
-{rag_nec_codes}
-
-Remember: Keep the summary simple and practical, but be thorough in explaining the NEC codes - write like you're teaching another electrician everything they need to know about these specific codes."""
-    
-    response = model.generate_content(gemini_prompt)
-    
-    # Add RAG NEC codes if they weren't already mentioned in the response
-    final_response = response.text
-    if rag_nec_codes and not any(code in response.text for code in ["NEC", "Code", "Article"]):
-        final_response += "\n\n### Additional Relevant NEC Codes:\n" + rag_nec_codes
-    
-    return final_response
+def get_chat_response(prompt):
+    """Get response from the assistant"""
+    with st.spinner(get_text('thinking')):
+        try:
+            model = genai.GenerativeModel('gemini-pro')
+            response = model.generate_content(prompt)
+            if response.parts:
+                return response.text
+            return get_text('error_message')
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
+            return get_text('error_message')
 
 def display_chat_history():
     """Display the chat history using Streamlit's chat message containers"""
