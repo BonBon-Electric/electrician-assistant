@@ -32,11 +32,11 @@ genai.configure(api_key=GOOGLE_API_KEY)
 model = genai.GenerativeModel('gemini-pro')
 
 # Initialize ChromaDB
-chroma_client = chromadb.Client()
-try:
-    collection = chroma_client.get_collection(name="electrician_docs")
-except:
-    collection = chroma_client.create_collection(name="electrician_docs")
+chroma_client = chromadb.EphemeralClient()
+collection = chroma_client.create_collection(
+    name="electrician_docs",
+    get_or_create=True
+)
 
 def get_text(key: str) -> str:
     """Get translated text based on current language"""
