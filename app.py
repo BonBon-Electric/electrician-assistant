@@ -15,23 +15,31 @@ import re
 # Load environment variables
 load_dotenv()
 
-# Get project paths
-PROJECT_ROOT = os.getenv("PROJECT_ROOT", "C:/Users/bonbo/OneDrive/BonBon-Electric/electrician-assistant")
-DATA_DIR = os.getenv("DATA_DIR", os.path.join(PROJECT_ROOT, "data"))
-MODEL_DIR = os.getenv("MODEL_DIR", os.path.join(PROJECT_ROOT, "models"))
+# Get project paths - use st.secrets for cloud deployment
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+
+# Configure paths for both local and cloud environments
+is_cloud = os.getenv('IS_CLOUD', False)
+if is_cloud:
+    PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+else:
+    PROJECT_ROOT = os.getenv("PROJECT_ROOT", "C:/Users/bonbo/OneDrive/BonBon-Electric/electrician-assistant")
+
+DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+MODEL_DIR = os.path.join(PROJECT_ROOT, "models")
 
 # Ensure directories exist
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 # Configure Gemini API
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 if not GOOGLE_API_KEY:
-    st.error("Please set your Google API key in the .env file")
+    st.error("Please set your Google API key in the .env file or Streamlit secrets")
     GOOGLE_API_KEY = st.text_input("Enter your Google API key:", type="password")
     if GOOGLE_API_KEY:
-        with open(".env", "w") as f:
-            f.write(f"GOOGLE_API_KEY={GOOGLE_API_KEY}")
+        if not is_cloud:  # Only write to .env if running locally
+            with open(".env", "w") as f:
+                f.write(f"GOOGLE_API_KEY={GOOGLE_API_KEY}")
         st.success("API key saved! Please restart the application.")
         st.stop()
 
