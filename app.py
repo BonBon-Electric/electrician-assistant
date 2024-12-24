@@ -299,16 +299,24 @@ def get_chat_response(prompt: str) -> str:
         rag_nec_codes = "\n".join(results['documents'][0])
     
     # Get response from Gemini with structured format requirement
-    gemini_prompt = f"""You are an experienced master electrician talking to another electrician. Respond in this exact format:
+    gemini_prompt = f"""You are an experienced master electrician talking to another electrician. Structure your response exactly like this:
 
-1. First, give a clear 1-2 paragraph summary explaining {prompt} in a conversational, easy-to-understand way. Focus on what another electrician needs to know to do the job correctly.
+Summary:
+Give a clear 1-2 paragraph summary explaining {prompt} in a conversational, easy-to-understand way. Focus on what another electrician needs to know to do the job correctly.
 
-2. Then, list the relevant NEC codes that apply. Keep this section brief and only include the most important codes:
+Relevant NEC Codes:
+List ALL relevant NEC codes that apply. For each code:
+- State the code number and title
+- Explain in detail what the code requires
+- Describe how it applies to this specific situation
+- Include any measurements, distances, or specifications required
+- Mention any exceptions or special conditions
+- Add any practical tips related to following this code
 
 Here are some relevant NEC codes to reference:
 {rag_nec_codes}
 
-Remember: Keep it simple and practical - write like you're talking to another electrician on the job site."""
+Remember: Keep the summary simple and practical, but be thorough in explaining the NEC codes - write like you're teaching another electrician everything they need to know about these specific codes."""
     
     response = model.generate_content(gemini_prompt)
     
