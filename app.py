@@ -291,21 +291,28 @@ def get_chat_response(prompt: str) -> str:
     # First get relevant NEC codes from RAG
     results = collection.query(
         query_texts=[prompt],
-        n_results=3  # Increased to get more relevant codes
+        n_results=3
     )
     
     rag_nec_codes = ""
     if results and results['documents'][0]:
         rag_nec_codes = "\n".join(results['documents'][0])
     
-    # Get response from Gemini with NEC code requirement
-    gemini_prompt = f"""You are an expert electrical contractor. Answer this electrical question with practical, accurate information. 
-IMPORTANT: You MUST include all relevant NEC code references and requirements that apply to this situation.
+    # Get response from Gemini with structured format requirement
+    gemini_prompt = f"""You are an expert electrical contractor providing guidance to other electricians. 
+Structure your response in this exact format:
 
-Question: {prompt}
+1. First, provide a clear, practical summary of what electricians need to know about: {prompt}
+   - Focus on installation methods
+   - Key safety considerations
+   - Common pitfalls to avoid
+   - Tools and materials needed
 
-Here are some relevant NEC codes to consider (verify and include any additional relevant codes):
-{rag_nec_codes}"""
+2. Then, provide the relevant NEC code requirements that support your practical guidance.
+   Use these NEC codes as reference (verify and include any additional relevant codes):
+{rag_nec_codes}
+
+Remember: You are talking to experienced electricians, so focus on technical details and code compliance."""
     
     response = model.generate_content(gemini_prompt)
     
