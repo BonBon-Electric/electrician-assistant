@@ -75,9 +75,10 @@ def initialize_session_state():
         st.session_state.estimates_history = []
 
 def update_chat_history(role: str, content: str):
-    """Update chat history with new message"""
-    st.session_state.chat_history.append({"role": role, "content": content})
-    # No longer limiting to 10 messages
+    """Add a message to the chat history"""
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    st.session_state.messages.append({"role": role, "content": content})
 
 def get_conversation_context() -> str:
     """Get context from previous messages"""
@@ -364,20 +365,28 @@ Remember: Keep the summary simple and practical, but be thorough in explaining t
     return final_response
 
 def display_chat_history():
-    """Display chat history with clickable NEC references"""
-    # Create a container for the chat history
-    chat_container = st.container()
-    
-    with chat_container:
-        for message in st.session_state.chat_history:
-            with st.chat_message(message["role"]):
-                if message["role"] == "assistant":
-                    # Format NEC references in assistant's responses
-                    formatted_message = format_nec_response(message["content"])
-                    st.markdown(formatted_message, unsafe_allow_html=True)
-                else:
-                    # Display user messages as is
-                    st.markdown(message["content"])
+    """Display the chat history using Streamlit's chat message containers"""
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+def update_chat_history(role, content):
+    """Add a message to the chat history"""
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    st.session_state.messages.append({"role": role, "content": content})
+
+def get_chat_response(prompt):
+    """Get response from the assistant"""
+    with st.spinner(get_text('thinking')):
+        try:
+            model = genai.GenerativeModel('gemini-pro')
+            chat = model.start_chat(history=st.session_state.messages)
+            response = chat.send_message(prompt)
+            return response.text
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
+            return get_text('error_message')
 
 def create_cost_estimate(description: str, additional_info: dict = None):
     """Generate a cost estimate based on the job description and optional additional info"""
@@ -818,58 +827,33 @@ def display_cost_estimate_form():
 def main():
     initialize_session_state()  # Initialize first!
     
-    # Language selector in sidebar
-    current_language = 'English' if st.session_state.language == 'en' else 'Español'
-    selected_language = st.sidebar.selectbox(
-        "🌐 Select Language / Seleccionar Idioma",
-        options=['English', 'Español'],
-        index=['English', 'Español'].index(current_language)
-    )
-    
-    # Update language state if changed
-    if (selected_language == 'English' and st.session_state.language != 'en') or \
-       (selected_language == 'Español' and st.session_state.language != 'es'):
-        st.session_state.language = 'en' if selected_language == 'English' else 'es'
-        st.rerun()  # Rerun to update all translations
-    
-    # Now we can safely use get_text since language is initialized
     st.title(get_text('app_title'))
     
-    # Create mode selector in the main content area
-    st.session_state.current_tab = st.radio(
-        "",  # Empty label for cleaner look
-        [get_text('nec_assistant'), get_text('cost_estimator')],
-        horizontal=True,  # Make the radio buttons horizontal
-        label_visibility="collapsed"  # Hide the empty label
-    )
+    # Create tabs
+    tab_labels = [get_text('nec_assistant'), get_text('cost_estimator')]
+    nec_tab, cost_tab = st.tabs(tab_labels)
     
-    st.divider()  # Add a visual separator
+    # Handle chat input before tabs
+    prompt = st.chat_input(get_text('chat_placeholder'))
     
-    # Main content
-    if st.session_state.current_tab == get_text('nec_assistant'):
-        st.write(f"## {get_text('nec_assistant')}")
+    with nec_tab:
+        st.write(get_text('nec_assistant_description'))
+        display_chat_history()
         
-        # Create a container for the chat interface
-        chat_interface = st.container()
-        
-        with chat_interface:
-            # Display existing chat history
-            display_chat_history()
+        if prompt:
+            # Add user message to history
+            update_chat_history("user", prompt)
             
-            # Get user input
-            if prompt := st.chat_input(get_text('chat_placeholder')):
-                # Add user message to history
-                update_chat_history("user", prompt)
-                
-                # Get and display assistant response
-                with st.spinner(get_text('thinking')):
-                    response = get_chat_response(prompt)
-                    update_chat_history("assistant", response)
-                
-                # Force a rerun to update the display
-                st.rerun()
+            # Get assistant response
+            response = get_chat_response(prompt)
+            
+            # Add assistant response to history
+            update_chat_history("assistant", response)
+            
+            # Force a rerun to update the display
+            st.rerun()
     
-    else:  # Cost Estimator
+    with cost_tab:
         display_cost_estimate_form()
 
 if __name__ == "__main__":
